@@ -159,7 +159,7 @@
         <h2><span class="eyebrow">TODAY</span><span id="todayLabel"></span></h2>
         <div class="row">
           <div class="big"><span id="cnt" class="accent">0</span><span class="rest"> / <span id="target">-</span>건</span></div>
-          <button class="btn-main" id="genBtn" onclick="gen()">전체 5편 생성</button>
+          <button class="btn-main" id="genBtn" onclick="gen()">블로거 글 생성</button>
           <div style="flex:1"></div>
           <a href="/publish-info" target="_blank"><button class="btn-sub">발행정보.txt 보기</button></a>
         </div>
@@ -190,7 +190,7 @@
         <h2><span class="eyebrow">TISTORY</span><span id="tTodayLabel">티스토리 작성 현황</span></h2>
         <div class="row">
           <div class="big"><span id="tCnt" class="accent">0</span><span class="rest"> / <span id="tTarget">-</span>건</span></div>
-          <button class="btn-main" id="tGenBtn" onclick="genT()">전체 5편 생성</button>
+          <button class="btn-main" id="tGenBtn" onclick="genT()">티스토리 글 생성</button>
           <div style="flex:1"></div>
           <a href="/publish-info-tistory" target="_blank"><button class="btn-sub">발행정보_티스토리.txt 보기</button></a>
         </div>
@@ -288,7 +288,16 @@ async function api(p, b) { const r = await fetch(p, b ? { method:'POST', headers
 function esc(s) { return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 async function tick() {
-  try { S = await api('/api/state'); } catch { return; }
+  // 서버가 응답하지 않거나 오류를 돌려주면 화면 위에 그대로 보여 준다(빈 화면으로 남지 않게)
+  const fail = (msg) => { document.getElementById('chips').innerHTML = `<span class="chip bad"><span class="dot"></span>${esc(msg)}</span>`; };
+  let st;
+  try {
+    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 15000);
+    const r = await fetch('/api/state', { signal: ctl.signal }); clearTimeout(to);
+    st = await r.json().catch(() => null);
+    if (!r.ok || !st || !st.job) return fail('대시보드 오류: ' + ((st && st.msg) || ('HTTP ' + r.status)) + ' — 검은 실행 창의 메시지를 확인하세요');
+  } catch { return fail('프로그램이 응답하지 않습니다 — 검은 실행 창(RUN_dashboard.bat)이 켜져 있는지 확인하고, 꺼져 있으면 다시 실행하세요'); }
+  S = st;
   document.getElementById('chips').innerHTML = [
     `<span class="chip ${S.claude?'ok':'bad'}"><span class="dot"></span>claude ${S.claude?'OK':'없음'}</span>`,
     `<span class="chip"><span class="dot"></span>모델 ${esc(S.model)}</span>`,

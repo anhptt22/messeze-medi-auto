@@ -1,6 +1,6 @@
 {
   "name": "messeze-medi-auto",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "메세지 메디(messeze medi) 자동화 대시보드 — 블로거 4 + 티스토리 4 + 홈페이지 칼럼(medi.messeze.com)",
   "scripts": {
