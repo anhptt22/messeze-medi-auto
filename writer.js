@@ -806,6 +806,10 @@ const server = http.createServer(async (req, res) => {
       const cfg = E.loadCfg();
       const f = path.join(E.paths(cfg).posts, path.basename(url.searchParams.get('f') || ''));
       if (!fs.existsSync(f)) return send(404, '없음: ' + path.basename(f), 'text/plain; charset=utf-8');
+      if (url.searchParams.get('dl')) {   // 파일로 내려받기(다운로드 폴더에 저장)
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Disposition': `attachment; filename="${path.basename(f)}"` });
+        return res.end(fs.readFileSync(f));
+      }
       return send(200, fs.readFileSync(f, 'utf8'), 'text/plain; charset=utf-8');
     }
     if (url.pathname.startsWith('/post-img/')) {
