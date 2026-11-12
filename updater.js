@@ -119,7 +119,7 @@ function lastCheck() { return LAST; }
 function depsOf(file) { try { return JSON.stringify(JSON.parse(fs.readFileSync(file, 'utf8')).dependencies || {}); } catch { return ''; } }
 function npmInstall(log) {
   log('패키지 설치(npm install) ...');
-  const r = spawnSync('npm', ['install', '--omit=dev', '--no-audit', '--no-fund'], { cwd: ROOT, shell: true, encoding: 'utf8', windowsHide: true, timeout: 10 * 60000 });
+  const r = spawnSync('npm install --omit=dev --no-audit --no-fund', { cwd: ROOT, shell: true, encoding: 'utf8', windowsHide: true, timeout: 10 * 60000 });
   if (r.status !== 0) { log('! npm install 실패: ' + String(r.stderr || r.stdout || '').trim().split(/\r?\n/).slice(-3).join(' / ').slice(0, 300)); return false; }
   log('패키지 설치 완료');
   return true;
@@ -147,7 +147,7 @@ async function apply(log = console.log) {
       if (!n) { LAST = { ...LAST, ok: true, behind: false, version: before, latest: before }; return { ok: true, changed: false, version: before }; }
       // 저장소 파일을 이 PC 에서 고친 것이 있으면 덮어쓰지 않고 따로 보관(stash)해 둔다
       const dirty = git(['status', '--porcelain', '--untracked-files=no']);
-      if (dirty) { log('이 PC 에서 고친 프로그램 파일이 있어 따로 보관합니다(git stash): ' + dirty.split(/\r?\n/).map(l => l.slice(3)).join(', ').slice(0, 200)); git(['stash', 'push', '-m', 'medi-auto update ' + new Date().toISOString()]); }
+      if (dirty) { log('이 PC 에서 고친 프로그램 파일이 있어 따로 보관합니다(git stash): ' + dirty.split(/\r?\n/).map(l => l.trim().replace(/^\S+\s+/, '')).join(', ').slice(0, 200)); git(['stash', 'push', '-m', 'medi-auto update ' + new Date().toISOString()]); }
       log(`새 변경 ${n}건을 받습니다(git pull) ...`);
       git(['merge', '--ff-only', `origin/${branch()}`]);
     } else if (m === 'zip') {
