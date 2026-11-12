@@ -110,13 +110,13 @@
   .viewbtns button { padding:7px 16px; font-size:13.5px; border-radius:8px; background:rgba(255,255,255,.10); color:rgba(255,255,255,.8); font-weight:bold; }
   .viewbtns button:hover { background:rgba(255,255,255,.18); }
   .viewbtns button.on { background:linear-gradient(135deg,var(--pink),var(--pink2)); color:#fff; box-shadow:0 3px 10px rgba(250,103,129,.45); }
-  .panes { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  .panes { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px; align-items:start; }
   .panes.only-b #paneT, .panes.only-b #paneH, .panes.only-b #paneM { display:none; } .panes.only-b { grid-template-columns:1fr; }
   .panes.only-t #paneB, .panes.only-t #paneH, .panes.only-t #paneM { display:none; } .panes.only-t { grid-template-columns:1fr; }
   .panes.only-h #paneB, .panes.only-h #paneT, .panes.only-h #paneM { display:none; } .panes.only-h { grid-template-columns:1fr; }
   .panes.no-h { grid-template-columns:1fr 1fr; }
   .panes.only-m #paneB, .panes.only-m #paneT, .panes.only-m #paneH { display:none; } .panes.only-m { grid-template-columns:1fr; }
-  #paneM { grid-column:1 / -1; }
+  #paneT { order:1; } #paneB { order:2; } #paneM { order:3; }
   .mcats label { display:inline-flex; align-items:center; gap:5px; margin:0 14px 6px 0; font-size:13px; }
   .mwarn { font-size:12px; line-height:1.55; margin-top:4px; }
   .pane { min-width:0; }
@@ -125,7 +125,7 @@
   .panehead .psub { color:rgba(255,255,255,.45); font-weight:normal; font-size:12.5px; }
   .pane .card:first-of-type { border-radius:0 0 14px 14px; }
   .pane .big { font-size:38px; }
-  @media (max-width:1150px) { .panes { grid-template-columns:1fr; } }
+  @media (max-width:1300px) { .panes { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -134,10 +134,10 @@
   <div class="wrap">
     <div class="brand">
       <h1><span class="accent">MESSEZE MEDI</span> 대시보드</h1>
-      <span style="color:rgba(255,255,255,.45); font-size:13px">블로거 + 티스토리 + 홈페이지 칼럼 <span id="verLabel"></span></span>
+      <span style="color:rgba(255,255,255,.45); font-size:13px">티스토리 + 블로거 + 홈페이지 칼럼 <span id="verLabel"></span></span>
       <span class="viewbtns">
-        <button id="vbB" onclick="setView('b')">블로거</button>
         <button id="vbT" onclick="setView('t')">티스토리</button>
+        <button id="vbB" onclick="setView('b')">블로거</button>
         <button id="vbM" onclick="setView('m')">홈페이지 칼럼</button>
         <button id="vbBoth" onclick="setView('all')">전체 보기</button>
         <button id="updBtn" onclick="updCheck()" title="GitHub 저장소의 최신 버전을 확인하고 받습니다">업데이트 확인</button>
