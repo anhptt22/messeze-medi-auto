@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>MESSEZE MEDI 대시보드</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --pink:#fa6781; --pink2:#e8506c; --pinkbg:#fff0f3; --pinkline:#ffd3dc;
+    --ink:#141418; --body:#3d3d44; --cap:#8a8a94; --line:#ececf1;
+    --bg:#f2f3f7; --card:#ffffff; --dark:#1c1c22;
+    --green:#16a34a; --greenbg:#e8f7ee; --amber:#c47c00; --red:#d64545;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif; background:var(--bg); color:var(--body); font-size:15.5px; }
+
+  /* ── 상단 다크 바 ── */
+  .topbar { background:linear-gradient(120deg,#1c1c22 0%,#26262e 70%,#332129 100%); padding:20px 0 64px; }
+  .wrap { width:100%; margin:0 auto; padding:0 28px; }
+  .topbar .brand { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .topbar h1 { font-size:24px; color:#fff; letter-spacing:-0.3px; }
+  .topbar h1 .accent { color:var(--pink); letter-spacing:2px; }
+  .topbar .sub { color:rgba(255,255,255,.55); font-size:13.5px; margin-top:6px; }
+  .chips { margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { display:inline-flex; align-items:center; gap:6px; border-radius:16px; padding:7px 14px; font-size:13.5px; font-weight:bold; background:rgba(255,255,255,.10); color:rgba(255,255,255,.85); }
+  .chip .dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.4); }
+  .chip.ok { background:rgba(22,163,74,.22); color:#7ee2a5; } .chip.ok .dot { background:#3ecf72; }
+  .chip.bad { background:rgba(214,69,69,.25); color:#ffb0b0; } .chip.bad .dot { background:#ff7070; }
+  .chip.pink { background:rgba(250,103,129,.22); color:#ffaebc; } .chip.pink .dot { background:var(--pink); }
+
+  /* ── 본문 카드 ── */
+  .main { margin-top:-42px; padding-bottom:40px; }
+  .card { background:var(--card); border-radius:14px; padding:20px 22px; margin-bottom:16px; box-shadow:0 3px 14px rgba(25,25,40,.08); }
+  .card h2 { font-size:17px; color:var(--ink); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .card h2 .eyebrow { color:var(--pink); font-size:12px; letter-spacing:2.5px; font-weight:bold; }
+  .card h2::after { content:""; flex:1; height:1px; background:var(--line); }
+  .row { display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+
+  button { border:0; border-radius:8px; padding:11px 19px; font-size:15px; cursor:pointer; font-family:inherit; font-weight:bold; }
+  .btn-main { background:linear-gradient(135deg,var(--pink),var(--pink2)); color:#fff; box-shadow:0 4px 14px rgba(250,103,129,.4); font-size:15.5px; }
+  .btn-main:hover { filter:brightness(1.06); }
+  .btn-main:disabled { background:#f3b3bf; box-shadow:none; cursor:default; }
+  .btn-sub { background:#fff; color:var(--body); border:1.5px solid #d9d9e0; padding:7px 13px; font-size:13.5px; font-weight:normal; }
+  .btn-sub:hover { border-color:var(--pink); color:var(--pink); background:var(--pinkbg); }
+
+  .big { font-size:48px; font-weight:800; color:var(--ink); line-height:1; }
+  .big .accent { background:linear-gradient(135deg,var(--pink),var(--pink2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .big .rest { font-size:18px; color:var(--cap); font-weight:normal; }
+  .muted { color:var(--cap); font-size:13.5px; }
+  a { color:var(--pink); text-decoration:none; }
+
+  /* 검증 리포트 */
+  .rep { border-top:1px solid var(--line); padding:11px 0; display:flex; gap:10px; }
+  .rep:first-of-type { border-top:0; }
+  .rep .dot { width:9px; height:9px; border-radius:50%; margin-top:6px; flex:none; }
+  .rep .dot.g { background:var(--green); box-shadow:0 0 0 3px var(--greenbg); }
+  .rep .dot.a { background:#f0a020; box-shadow:0 0 0 3px #fdf2dd; }
+  .rep .dot.r { background:var(--red); box-shadow:0 0 0 3px #fde3e3; }
+  .rep b.t { color:var(--ink); font-size:15.5px; }
+  .badge { display:inline-block; border-radius:6px; padding:3px 10px; font-size:13px; font-weight:bold; }
+  .badge.score { background:var(--dark); color:#fff; }
+  .badge.score.low { background:var(--red); }
+  .issue { color:var(--red); font-size:14px; } .warn { color:var(--amber); font-size:14px; }
+
+  /* 큐 테이블 */
+  table.list { width:100%; border-collapse:collapse; font-size:14.5px; }
+  table.list th { text-align:left; color:var(--cap); font-size:13px; letter-spacing:1px; font-weight:bold; padding:8px; border-bottom:2px solid var(--pink); white-space:nowrap; }
+  table.list td { padding:12px 9px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  table.list tr:hover td { background:var(--pinkbg); }
+  table.list td.f { color:var(--cap); font-size:12.5px; }
+  table.list a.t { color:var(--ink); font-weight:bold; }
+  table.list a.t:hover { color:var(--pink); }
+  .blogtag { display:inline-block; border-radius:6px; padding:3px 9px; font-size:13px; font-weight:bold; background:#eef0f6; color:#555a68; white-space:nowrap; }
+  .st { display:inline-block; border-radius:12px; padding:4px 12px; font-size:13px; font-weight:bold; }
+  td.qcell { font-size:12.5px; color:var(--body); line-height:1.55; width:30%; min-width:130px; }
+  .minfo { margin-top:8px; background:#f7f8fb; border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12.5px; }
+  .minfo summary { cursor:pointer; color:var(--body); font-weight:bold; }
+  .mrow { display:flex; gap:8px; align-items:flex-start; margin-top:6px; }
+  .mlabel { flex:0 0 88px; color:#8B95A7; }
+  .mval { flex:1; word-break:break-all; color:#333; }
+  .mcopy { padding:2px 9px !important; font-size:12px !important; white-space:nowrap; }
+  .bpost { padding:4px 0 8px; } .bpost + .bpost { border-top:1px dashed var(--line); padding-top:10px; }
+  .qline { font-size:12.5px; color:var(--cap, #8B95A7); margin-bottom:4px; }
+  .qno { display:inline-block; background:#eef0f6; color:#555a68; font-weight:bold; font-size:11.5px; border-radius:8px; padding:1px 7px; margin-right:2px; }
+  .st.pub { background:var(--green); color:#fff; } .st.pen { background:var(--pink); color:#fff; } .st.dr { background:#f0a020; color:#fff; }
+  .st.fail { background:var(--red); color:#fff; }
+  .btn-green { background:linear-gradient(135deg,#16a34a,#0d8a3c); color:#fff; box-shadow:0 4px 14px rgba(22,163,74,.35); font-size:15.5px; }
+  .btn-green:disabled { background:#9fd4b2; box-shadow:none; cursor:default; }
+  .btn-approve { background:#16a34a; color:#fff; border:0; padding:7px 13px; font-size:13.5px; }
+  .btn-approve:hover { background:#0d8a3c; }
+  .btn-approve:disabled { background:#9fd4b2; cursor:default; }
+  table.list td .btn-sub, table.list td .btn-approve { margin:2px 0; }
+
+  .log { background:var(--dark); color:#d6d6de; border-radius:10px; padding:14px; font:13px/1.75 Consolas,monospace; max-height:260px; overflow:auto; white-space:pre-wrap; }
+  .spin { display:inline-block; width:12px; height:12px; border:2.5px solid var(--pinkline); border-top-color:var(--pink); border-radius:50%; animation:sp .8s linear infinite; vertical-align:-1px; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+
+  /* 계정 */
+  .acct { border-top:1px solid var(--line); padding:10px 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:14.5px; }
+  .acct:first-of-type { border-top:0; }
+  .avatar { width:30px; height:30px; border-radius:50%; background:var(--pinkbg); color:var(--pink); font-weight:800; display:inline-flex; align-items:center; justify-content:center; font-size:13px; flex:none; }
+  .acct.active .avatar { background:linear-gradient(135deg,var(--pink),var(--pink2)); color:#fff; box-shadow:0 0 0 3px var(--pinkline); }
+  .tag { font-size:12.5px; border-radius:10px; padding:2px 9px; background:#eef0f6; color:#555a68; font-weight:bold; }
+  .tag.active { background:var(--pink); color:#fff; }
+  input[type=text] { border:1.5px solid #d9d9e0; border-radius:8px; padding:9px 11px; font-size:14px; font-family:inherit; }
+  input[type=text]:focus { outline:none; border-color:var(--pink); }
+
+  /* ── 2분할(좌 블로거 · 우 티스토리) — 레드트랜스 통합 대시보드 스타일 ── */
+  .viewbtns { display:inline-flex; gap:6px; margin-left:18px; vertical-align:middle; }
+  .viewbtns button { padding:7px 16px; font-size:13.5px; border-radius:8px; background:rgba(255,255,255,.10); color:rgba(255,255,255,.8); font-weight:bold; }
+  .viewbtns button:hover { background:rgba(255,255,255,.18); }
+  .viewbtns button.on { background:linear-gradient(135deg,var(--pink),var(--pink2)); color:#fff; box-shadow:0 3px 10px rgba(250,103,129,.45); }
+  .panes { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  .panes.only-b #paneT, .panes.only-b #paneH, .panes.only-b #paneM { display:none; } .panes.only-b { grid-template-columns:1fr; }
+  .panes.only-t #paneB, .panes.only-t #paneH, .panes.only-t #paneM { display:none; } .panes.only-t { grid-template-columns:1fr; }
+  .panes.only-h #paneB, .panes.only-h #paneT, .panes.only-h #paneM { display:none; } .panes.only-h { grid-template-columns:1fr; }
+  .panes.no-h { grid-template-columns:1fr 1fr; }
+  .panes.only-m #paneB, .panes.only-m #paneT, .panes.only-m #paneH { display:none; } .panes.only-m { grid-template-columns:1fr; }
+  #paneM { grid-column:1 / -1; }
+  .mcats label { display:inline-flex; align-items:center; gap:5px; margin:0 14px 6px 0; font-size:13px; }
+  .mwarn { font-size:12px; line-height:1.55; margin-top:4px; }
+  .pane { min-width:0; }
+  .panehead { background:linear-gradient(120deg,#26262e,#332129); color:rgba(255,255,255,.85); font-size:13.5px; font-weight:bold; border-radius:12px 12px 0 0; padding:10px 18px; display:flex; align-items:center; gap:8px; }
+  .panehead .pdot { width:8px; height:8px; border-radius:50%; background:var(--pink); }
+  .panehead .psub { color:rgba(255,255,255,.45); font-weight:normal; font-size:12.5px; }
+  .pane .card:first-of-type { border-radius:0 0 14px 14px; }
+  .pane .big { font-size:38px; }
+  @media (max-width:1150px) { .panes { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <h1><span class="accent">MESSEZE MEDI</span> 대시보드</h1>
+      <span style="color:rgba(255,255,255,.45); font-size:13px">블로거 + 티스토리 + 홈페이지 칼럼 <span id="verLabel"></span></span>
+      <span class="viewbtns">
+        <button id="vbB" onclick="setView('b')">블로거</button>
+        <button id="vbT" onclick="setView('t')">티스토리</button>
+        <button id="vbM" onclick="setView('m')">홈페이지 칼럼</button>
+        <button id="vbBoth" onclick="setView('all')">전체 보기</button>
+        <button id="updBtn" onclick="updCheck()" title="GitHub 저장소의 최신 버전을 확인하고 받습니다">업데이트 확인</button>
+      </span>
+    </div>
+    <div class="sub">① 글 생성 → ② <b>미리보기</b>로 확인 → ③ 필요하면 <b>제목 다시 · 이미지 교체 · 다시 쓰기</b> → ④ <b>발행</b>을 누른 글만 올라갑니다. 생성만으로는 절대 발행되지 않습니다.</div>
+    <div class="chips" id="chips"></div>
+  </div>
+</div>
+
+<div class="main"><div class="wrap">
+
+  <div class="panes" id="panes">
+
+    <!-- ── 좌: 블로거 ── -->
+    <div class="pane" id="paneB">
+      <div class="panehead"><span class="pdot"></span>블로거 <span class="psub">메세지 메디 블로그 4개(종합·치과·피부성형·동물병원) — Blogger API 게시</span></div>
+      <div class="card">
+        <h2><span class="eyebrow">TODAY</span><span id="todayLabel"></span></h2>
+        <div class="row">
+          <div class="big"><span id="cnt" class="accent">0</span><span class="rest"> / <span id="target">-</span>건</span></div>
+          <button class="btn-main" id="genBtn" onclick="gen()">전체 5편 생성</button>
+          <div style="flex:1"></div>
+          <a href="/publish-info" target="_blank"><button class="btn-sub">발행정보.txt 보기</button></a>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn-green" id="pubBtn" onclick="post('publish')" style="display:none">오늘 발행(공개)</button>
+          <button class="btn-sub" id="draftBtn" onclick="post('draft')" style="display:none">초안 등록</button>
+          <button class="btn-sub" id="authBtn" onclick="blogAuth()" style="display:none">발행 API 연동(구글 인증)</button>
+        </div>
+        <div class="muted" id="apiInfo" style="margin-top:8px"></div>
+        <div class="muted" id="autoInfo" style="margin-top:4px"></div>
+        <div class="muted" id="outDir" style="margin-top:4px"></div>
+      </div>
+      <div class="card">
+        <h2><span class="eyebrow">BLOGS</span>블로그별 글 쓰기</h2>
+        <table class="list"><thead><tr><th>블로그</th><th>오늘 쓴 글</th><th></th></tr></thead><tbody id="bBlogs"></tbody></table>
+        <div class="muted" style="margin-top:8px">원하는 블로그만 1편씩 작성합니다 · 생성만 하고 발행은 하지 않습니다</div>
+      </div>
+      <div class="card">
+        <h2><span class="eyebrow">QUEUE</span>블로거 작성 큐 (최근 15건)</h2>
+        <table class="list"><thead><tr><th>블로그</th><th>질문</th><th>제목 · 작업</th><th>상태</th></tr></thead><tbody id="qBody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ── 우: 티스토리 ── -->
+    <div class="pane" id="paneT">
+      <div class="panehead"><span class="pdot"></span>티스토리 <span class="psub">메세지 메디 블로그 4개(종합·치과·피부성형·동물병원) — 브라우저 자동 게시</span></div>
+      <div class="card" id="tistoryCard">
+        <h2><span class="eyebrow">TISTORY</span><span id="tTodayLabel">티스토리 작성 현황</span></h2>
+        <div class="row">
+          <div class="big"><span id="tCnt" class="accent">0</span><span class="rest"> / <span id="tTarget">-</span>건</span></div>
+          <button class="btn-main" id="tGenBtn" onclick="genT()">전체 5편 생성</button>
+          <div style="flex:1"></div>
+          <a href="/publish-info-tistory" target="_blank"><button class="btn-sub">발행정보_티스토리.txt 보기</button></a>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn-green" id="tPubBtn" onclick="postT('publish')">티스토리 발행(공개)</button>
+          <button class="btn-sub" id="tDraftBtn" onclick="postT('draft')">임시저장(초안)</button>
+          <button class="btn-sub" id="tLoginBtn" onclick="tLogin()">티스토리 로그인(카카오)</button>
+          <button class="btn-sub" id="tCatBtn" onclick="tCats()">카테고리 추출</button>
+          <button class="btn-sub" id="tFixCatBtn" onclick="tFixCat()">카테고리 보정(발행분)</button>
+        </div>
+        <div class="muted" id="tInfo" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
+        <h2><span class="eyebrow">BLOGS</span>블로그별 글 쓰기</h2>
+        <table class="list"><thead><tr><th>블로그</th><th>오늘 쓴 글</th><th></th></tr></thead><tbody id="tBlogs"></tbody></table>
+        <div class="muted" style="margin-top:8px">원하는 블로그만 1편씩 작성합니다 · 생성만 하고 발행은 하지 않습니다</div>
+      </div>
+      <div class="card" id="tQueueCard">
+        <h2><span class="eyebrow">QUEUE</span>티스토리 작성 큐 (최근 15건)</h2>
+        <table class="list"><thead><tr><th>블로그</th><th>질문</th><th>제목 · 작업</th><th>상태</th></tr></thead><tbody id="tqBody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ── 메디: medi.messeze.com 병원 전용 칼럼 (관리자 화면 입력) ── -->
+    <div class="pane" id="paneM">
+      <div class="panehead"><span class="pdot"></span>홈페이지 칼럼 <span class="psub">medi.messeze.com/blog — 병원 전용 · 관리자(/admin) 화면에 입력</span></div>
+      <div class="card">
+        <h2><span class="eyebrow">MEDI</span>메디 칼럼 (하루 1편)</h2>
+        <div class="row" style="margin-top:12px">
+          <button class="btn-main" id="mGenBtn" onclick="mGen()">메디 칼럼 생성 (1편)</button>
+          <button class="btn-sub" id="mLoginBtn" onclick="mLogin()">메디 관리자 로그인</button>
+          <button class="btn-sub" id="mSyncBtn" onclick="mSync()">질문표 새로 받기(구글 시트)</button>
+          <a href="https://medi.messeze.com/blog" target="_blank"><button class="btn-sub">발행된 글 목록 보기</button></a>
+        </div>
+        <div class="muted" id="mInfo" style="margin-top:10px; line-height:1.7"></div>
+        <div class="mcats" id="mCats" style="margin-top:10px"></div>
+      </div>
+      <div class="card" id="mQueueCard">
+        <h2><span class="eyebrow">QUEUE</span>메디 칼럼 큐 (최근 15건)</h2>
+        <table class="list"><thead><tr><th>질문</th><th>제목 · 작업</th><th>상태</th></tr></thead><tbody id="mqBody"></tbody></table>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card" id="jobCard" style="display:none; margin-top:16px">
+    <h2><span class="eyebrow">JOB</span><span id="jobKind"></span> <span class="spin" id="jobSpin"></span> <span class="muted" id="jobMin"></span></h2>
+    <div class="log" id="jobLog"></div>
+  </div>
+
+  <div class="card" id="repCard" style="display:none">
+    <h2><span class="eyebrow">LAST RUN</span>최근 생성 검증 리포트 <span class="muted" id="repAt"></span></h2>
+    <div id="repBody"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2><span class="eyebrow">CLAUDE</span>Claude 계정 연동 <span class="muted" style="font-weight:normal">블로거·티스토리 공용</span> <button class="btn-sub" onclick="acctRefresh()">상태 새로고침</button></h2>
+    <div id="accts"></div>
+    <div class="row" style="margin-top:12px">
+      <input type="text" id="newAcct" placeholder="새 계정 이름 (예: sub1)" style="width:170px">
+      <button class="btn-sub" onclick="acctLogin(document.getElementById('newAcct').value)">+ 계정 추가(로그인)</button>
+      <input type="text" id="codeBox" placeholder="브라우저에서 받은 코드 붙여넣기" style="width:260px">
+      <button class="btn-sub" onclick="acctCode()">연동 완료</button>
+      <span class="muted" id="pendingName"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="eyebrow">LOG</span>주제 로그 (최근 8줄)</h2>
+    <div class="log" id="topics" style="max-height:170px"></div>
+  </div>
+
+</div></div>
+
+<script>
+let S = null, pendingLogin = '';
+// ── 보기 전환(좌 블로거 / 우 티스토리 / 둘 다) — 레드트랜스 통합 대시보드 방식 ──
+let VIEW = localStorage.getItem('mediView') || 'all';
+if (VIEW === 'h') VIEW = 'm';
+if (VIEW === 'both') VIEW = 'all'; // 구버전 저장값 호환
+function setView(v) {
+  VIEW = v; localStorage.setItem('mediView', v);
+  const p = document.getElementById('panes');
+  p.classList.toggle('only-b', v === 'b');
+  p.classList.toggle('only-t', v === 't');
+  p.classList.toggle('only-h', v === 'h');
+  p.classList.toggle('only-m', v === 'm');
+  document.getElementById('vbB').classList.toggle('on', v === 'b');
+  document.getElementById('vbT').classList.toggle('on', v === 't');
+  document.getElementById('vbM').classList.toggle('on', v === 'm');
+  document.getElementById('vbBoth').classList.toggle('on', v === 'all');
+}
+setView(VIEW);
+async function api(p, b) { const r = await fetch(p, b ? { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b) } : undefined); return r.json().catch(() => ({})); }
+function esc(s) { return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function tick() {
+  try { S = await api('/api/state'); } catch { return; }
+  document.getElementById('chips').innerHTML = [
+    `<span class="chip ${S.claude?'ok':'bad'}"><span class="dot"></span>claude ${S.claude?'OK':'없음'}</span>`,
+    `<span class="chip"><span class="dot"></span>모델 ${esc(S.model)}</span>`,
+    `<span class="chip pink"><span class="dot"></span>매일 자동 ${S.autoDaily ? S.autoTime : '꺼짐'}</span>`,
+    `<span class="chip"><span class="dot"></span>자동 실행일 ${esc(S.autoLastRunDate||'-')}</span>`,
+    `<span class="chip ${S.apiReady?'ok':'bad'}"><span class="dot"></span>블로거 API ${S.apiReady?'OK':'미연동'}</span>`,
+    S.tistory ? `<span class="chip ${S.tistory.sessionOk?'ok':'bad'}"><span class="dot"></span>티스토리 세션 ${S.tistory.sessionOk?'OK':'로그인 필요'}</span>` : '',
+  ].join('');
+  document.getElementById('todayLabel').textContent = S.today + ' 작성 현황';
+  document.getElementById('cnt').textContent = S.todayCount;
+  document.getElementById('target').textContent = S.targetCount;
+  document.getElementById('autoInfo').textContent = S.autoDaily ? `매일 ${S.autoTime}에 자동 생성 (서버 켜져 있을 때)` : '자동 생성 꺼짐 (writer_config.json의 autoDaily)';
+  document.getElementById('outDir').textContent = '보관 폴더: ' + S.outputDir;
+  const btn = document.getElementById('genBtn');
+  btn.disabled = S.job.running;
+  btn.textContent = S.job.running ? '작업 중...' : (S.todayCount >= S.targetCount ? '추가 생성(강제)' : `블로거 ${Math.max(1, S.targetCount - S.todayCount)}건 생성`);
+  const pubBtn = document.getElementById('pubBtn'), draftBtn = document.getElementById('draftBtn'), authBtn = document.getElementById('authBtn'), apiInfo = document.getElementById('apiInfo');
+  pubBtn.style.display = S.apiReady ? '' : 'none';
+  draftBtn.style.display = S.apiReady ? '' : 'none';
+  authBtn.style.display = S.apiReady ? 'none' : '';
+  pubBtn.disabled = draftBtn.disabled = S.job.running;
+  apiInfo.textContent = S.apiReady
+    ? '오늘 pending 글을 블로그당 최신 1건씩 게시 · 간격 ' + '5분' + ' · 검색 설명은 발행 후 수동 입력'
+    : (S.apiHasSecret ? '발행하려면 메디 블로그 구글 계정으로 1회 인증이 필요해요' : 'client_secret.json 없음');
+
+  const jc = document.getElementById('jobCard');
+  if (S.job.running || (S.job.logs && S.job.logs.length)) {
+    jc.style.display = '';
+    document.getElementById('jobKind').textContent = S.job.kind || '대기';
+    document.getElementById('jobSpin').style.display = S.job.running ? '' : 'none';
+    document.getElementById('jobMin').textContent = S.job.running ? `(${S.job.minutes}분 경과)` : '(완료)';
+    const el = document.getElementById('jobLog');
+    const stick = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+    el.textContent = (S.job.logs || []).join('\n');
+    if (stick) el.scrollTop = el.scrollHeight;
+  } else jc.style.display = 'none';
+
+  // ── 티스토리 패널(우측) ──
+  const T = S.tistory;
+  const paneT = document.getElementById('paneT');
+  if (T && T.enabled) {
+    if (VIEW === 'all' || VIEW === 't') paneT.style.display = '';
+    document.getElementById('tCnt').textContent = T.todayCount;
+    document.getElementById('tTarget').textContent = T.targetCount;
+    const tg = document.getElementById('tGenBtn');
+    tg.disabled = S.job.running;
+    tg.textContent = S.job.running ? '작업 중...' : (T.todayCount >= T.targetCount ? '티스토리 추가 생성(강제)' : `티스토리 ${Math.max(1, T.targetCount - T.todayCount)}건 생성`);
+    document.getElementById('tPubBtn').disabled = document.getElementById('tDraftBtn').disabled =
+      document.getElementById('tLoginBtn').disabled = document.getElementById('tCatBtn').disabled = S.job.running;
+    document.getElementById('tLoginBtn').style.display = T.sessionOk ? 'none' : '';
+    document.getElementById('tInfo').textContent = T.sessionOk
+      ? (T.catsOk ? `발행 시 브라우저 창이 열려 자동 게시 · 간격 ${T.stagger}분 · 블로그당 최신 1건` : '카테고리 미추출 — [카테고리 추출]을 한 번 실행하세요(카테고리 없이도 발행은 가능)')
+      : '먼저 [티스토리 로그인]으로 카카오 로그인 1회 필요';
+    document.getElementById('tqBody').innerHTML = (T.queue || []).map(q => {
+      const stCls = q.status === 'published' ? 'pub' : (q.status === 'draft' ? 'dr' : 'pen');
+      const stTxt = q.status === 'published' ? '발행됨' : (q.status === 'draft' ? '초안' : '대기');
+      const live = q.published_url ? ` <a href="${esc(q.published_url)}" target="_blank" title="발행된 글 열기">↗</a>` : '';
+      const pv = `<a href="/preview?f=${encodeURIComponent(q.file)}" target="_blank"><button class="btn-sub">미리보기</button></a> `;
+      let act = pv;
+      if (q.status === 'pending' || q.status === 'draft') act = pv + `<button class="btn-approve" onclick="postOneT('${esc(q.file)}')">발행</button> ` + fixBtns('tistory', q.file) + `<button class="btn-sub" onclick="markPubT('${esc(q.file)}')">발행 처리</button>`;
+      return rowHtml(q, q.blogName || q.account || '', live, stCls, stTxt, act);
+    }).join('');
+  } else { paneT.style.display = 'none'; }
+
+  // ── 홈페이지 칼럼 패널(3열) — 항상 보인다(사라지지 않음) ──
+  const H = null;
+  document.getElementById('verLabel').textContent = S.version ? '· v' + S.version : '';
+  { const ub = document.getElementById('updBtn'); const nu = !!(S.update && S.update.behind); ub.textContent = nu ? '새 버전 있음 — 업데이트' : '업데이트 확인'; ub.classList.toggle('on', nu); }
+  document.getElementById('paneM').style.display = (VIEW === 'all' || VIEW === 'm') ? '' : 'none';
+  renderMedi();
+  renderBlogList('bBlogs', S.blogList, 'blogger');
+  if (S.tistory) renderBlogList('tBlogs', S.tistory.blogList, 'tistory');
+
+  const repRows = [].concat(
+    (S.lastRun && S.lastRun.fresh) || [],
+    (T && T.lastRun && T.lastRun.fresh) || [],
+    (H && H.lastRun && H.lastRun.fresh) || []
+  );
+  const repAts = [S.lastRun, T && T.lastRun, H && H.lastRun].filter(Boolean).map(r => r.at || '');
+  const repAt = repAts.sort().slice(-1)[0] || '';
+  const rep = repRows.length ? { fresh: repRows, at: repAt } : null;
+  const rc = document.getElementById('repCard');
+  if (rep && rep.fresh && rep.fresh.length) {
+    rc.style.display = '';
+    document.getElementById('repAt').textContent = (rep.at || '').replace('T', ' ').slice(0, 16);
+    document.getElementById('repBody').innerHTML = rep.fresh.map(r => {
+      const dot = r.issues.length ? 'r' : (r.warns.length ? 'a' : 'g');
+      return `
+      <div class="rep">
+        <span class="dot ${dot}"></span>
+        <div>
+          <b class="t">${esc(r.title)}</b>
+          ${r.score !== null ? `<span class="badge score ${r.score < 18 ? 'low' : ''}">채점 ${r.score}/20</span>` : ''}
+          <div class="muted" style="margin:3px 0 2px">${esc(r.blog)} · ${esc(r.file)} · ${r.chars}자 · 이미지 ${esc(r.imgOk||'-')}</div>
+          ${r.issues.length ? '<div class="issue">오류: ' + esc(r.issues.join(' · ')) + '</div>' : ''}
+          ${r.warns.length ? '<div class="warn">경고: ' + esc(r.warns.join(' · ')) + '</div>' : (!r.issues.length ? '<div class="muted">이상 없음</div>' : '')}
+        </div>
+      </div>`;
+    }).join('');
+  } else rc.style.display = 'none';
+
+  document.getElementById('qBody').innerHTML = (S.queue || []).map(q => {
+    const stCls = q.status === 'published' ? 'pub' : (q.status === 'draft' ? 'dr' : 'pen');
+    const stTxt = q.status === 'published' ? '발행됨' : (q.status === 'draft' ? '초안' : '대기');
+    const live = q.published_url ? ` <a href="${esc(q.published_url)}" target="_blank" title="발행된 글 열기">↗</a>` : '';
+    const pv = `<a href="/preview?f=${encodeURIComponent(q.file)}" target="_blank"><button class="btn-sub">미리보기</button></a> `;
+    let act = pv;
+    if (q.status === 'pending') act = pv + (S.apiReady ? `<button class="btn-approve" onclick="postOne('${esc(q.file)}')">발행</button> ` : '') + fixBtns('blogger', q.file) + `<button class="btn-sub" onclick="markPub('${esc(q.file)}')">수동 발행 완료</button>`;
+    if (q.status === 'draft') act = pv + (S.apiReady ? `<button class="btn-approve" onclick="postOne('${esc(q.file)}')">공개 전환</button> ` : '') + `<button class="btn-sub" onclick="markPub('${esc(q.file)}')">수동 발행 완료</button>`;
+    return rowHtml(q, q.blogName || '', live, stCls, stTxt, act + manualInfo(q));
+  }).join('');
+
+  document.getElementById('topics').textContent = (S.topicsTail || []).join('\n') || '(없음)';
+  renderAccts();
+}
+
+function renderAccts() {
+  const A = S && S.accounts;
+  const el = document.getElementById('accts');
+  if (!A) { el.innerHTML = '<span class="muted">계정 정보 없음</span>'; return; }
+  el.innerHTML = (A.accounts || []).map(a => `
+    <div class="acct ${a.name === A.active ? 'active' : ''}">
+      <span class="avatar">${esc((a.name || '?')[0].toUpperCase())}</span>
+      <span class="tag ${a.name === A.active ? 'active' : ''}">${a.name === A.active ? '사용 중' : '대기'}</span>
+      <b style="color:var(--ink)">${esc(a.name)}</b>
+      <span class="muted">${a.loggedIn === false ? '미로그인' : esc(a.email || '')}${a.plan ? ' (' + esc(a.plan) + ')' : ''}${a.cooling ? ' · 한도 휴식 중' + (a.cooldownUntil ? ' (' + (new Date(a.cooldownUntil).toDateString() === new Date().toDateString() ? '' : (new Date(a.cooldownUntil).getMonth() + 1) + '/' + new Date(a.cooldownUntil).getDate() + ' ') + new Date(a.cooldownUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' 재개)' : '') : ''}</span>
+      <span style="flex:1"></span>
+      ${a.name !== A.active ? `<button class="btn-sub" onclick="api('/api/account/switch',{name:'${esc(a.name)}'}).then(tick)">전환</button>` : ''}
+      ${a.loggedIn === false ? `<button class="btn-sub" onclick="acctLogin('${esc(a.name)}')">연동</button>` : ''}
+      <button class="btn-sub" onclick="api('/api/account/test',{name:'${esc(a.name)}'}).then(tick)">연결테스트</button>
+      ${!a.isDefault ? `<button class="btn-sub" onclick="if(confirm('${esc(a.name)} 계정을 삭제할까요?'))api('/api/account/logout',{name:'${esc(a.name)}',remove:true}).then(tick)">삭제</button>` : ''}
+    </div>`).join('');
+}
+
+async function gen() {
+  const force = S && S.todayCount >= S.targetCount;
+  if (force && !confirm('오늘 글이 이미 ' + S.todayCount + '건 있습니다. 5개 블로그에 1편씩 더 생성할까요?\n(파일 번호가 이어서 붙습니다)')) return;
+  if (!force && !confirm(`블로거 ${(S && S.targetCount) || ''}건 생성을 시작할까요? (약 20~40분, Claude 사용)`)) return;
+  await api('/api/generate', { force });
+  tick();
+}
+async function post(mode) {
+  const label = mode === 'publish' ? '공개 발행' : '초안 등록';
+  const warn = mode === 'publish' ? ' (발행 간격 5분, 블로그당 최신 1건씩 / 검색 설명은 발행 후 발행정보.txt 보고 편집기에서 수동 입력)' : '';
+  if (!confirm('오늘 pending 글을 ' + label + '할까요?' + warn)) return;
+  await api('/api/post', { mode });
+  tick();
+}
+async function postOne(f) {
+  if (!confirm(f + ' 을 지금 공개 발행할까요? (검색 설명은 발행 후 편집기에서 수동 입력)')) return;
+  await api('/api/post', { mode: 'publish', file: f });
+  tick();
+}
+async function blogAuth() {
+  if (!confirm('메디 블로그 소유 구글 계정으로 Blogger API 인증을 시작할까요? 브라우저 동의 창이 열리면 반드시 메디 블로그(medi-messeze 등 4개)를 가진 구글 계정으로 로그인해 동의하세요.')) return;
+  await api('/api/blogauth', {});
+  alert('브라우저에서 구글 동의 화면이 열렸어요. 동의를 완료하면 상단 칩이 [발행 API OK]로 바뀝니다.');
+  tick();
+}
+async function markPub(f) {
+  if (!confirm(f + '\n\n블로거에서 손으로 공개한 글을 [발행됨]으로 기록합니다.\n(블로거에 실제로 공개한 뒤 누르세요)')) return;
+  let r = await api('/api/blogger-manual-published', { file: f });
+  if (r && r.needConfirm) {
+    if (!confirm((r.msg || '블로거에서 공개된 글을 찾지 못했습니다.') + '\n\n그래도 [발행됨]으로 표시할까요? (발행 주소는 기록되지 않습니다)')) return;
+    r = await api('/api/blogger-manual-published', { file: f, force: true });
+  }
+  if (r && r.ok === false) alert(r.msg || '처리 실패');
+  tick();
+}
+async function acctLogin(name) {
+  name = (name || '').trim(); if (!name) return alert('계정 이름을 입력하세요');
+  pendingLogin = name;
+  document.getElementById('pendingName').textContent = '연동 대기: ' + name;
+  const win = window.open('', '_blank');
+  const r = await api('/api/account/login', { name });
+  if (r.loggedIn) { win.close(); alert('이미 연동된 계정입니다: ' + (r.email || name)); tick(); return; }
+  if (r.url) win.location.href = r.url; else { win.close(); alert(r.error || 'URL을 받지 못했습니다'); }
+}
+async function acctCode() {
+  const code = document.getElementById('codeBox').value.trim();
+  if (!pendingLogin) return alert('먼저 [연동]을 눌러 로그인 URL을 받으세요');
+  if (!code) return alert('코드를 붙여넣으세요');
+  const r = await api('/api/account/code', { name: pendingLogin, code });
+  if (r.loggedIn) { alert('연동 완료: ' + (r.email || pendingLogin)); document.getElementById('codeBox').value = ''; pendingLogin = ''; document.getElementById('pendingName').textContent = ''; }
+  else alert('실패: ' + (r.error || '코드를 확인하세요'));
+  tick();
+}
+async function acctRefresh() { await api('/api/account/refresh', {}); tick(); }
+
+// 블로거·티스토리 큐 한 줄: [블로그] [제목 + 파일·채점 + 버튼 줄] [상태]
+// 질문 칸: 질문은행 번호 + 원문 질문
+function qCell(q) {
+  if (!q.q_no && !q.question) return '<td class="qcell"><span class="muted">-</span></td>';
+  return `<td class="qcell">${q.q_no ? `<span class="qno">${esc(q.q_no)}${q.q_variant ? '·' + esc(q.q_variant) : ''}</span> ` : ''}${esc(q.question || '')}</td>`;
+}
+function rowHtml(q, blog, live, stCls, stTxt, act) {
+  const sc = q.score !== null && q.score !== undefined ? ` · <span class="badge score ${q.score < 18 ? 'low' : ''}">${q.score}/20</span>` : '';
+  return `<tr>
+    <td style="white-space:nowrap"><span class="blogtag">${esc(blog)}</span></td>
+    ${qCell(q)}
+    <td><a class="t" href="/preview?f=${encodeURIComponent(q.file)}" target="_blank">${esc(q.title)}</a>${live}
+      <div class="muted" style="font-size:12px;margin-top:3px">${esc(q.file)}${sc}</div>
+      <div style="margin-top:8px;line-height:2.1">${act}</div></td>
+    <td style="white-space:nowrap"><span class="st ${stCls}">${stTxt}</span></td>
+  </tr>`;
+}
+
+// ── 개별 글 손보기 버튼 (first 와 같은 구성) ──
+function fixBtns(channel, file) {
+  const f = esc(file);
+  return `<button class="btn-sub" onclick="retitle('${channel}','${f}')">제목 다시</button> `
+    + `<button class="btn-sub" onclick="reimg('${channel}','${f}')">이미지 교체</button> `
+    + `<button class="btn-sub" onclick="regen('${channel}','${f}')">다시 쓰기</button> `;
+}
+async function retitle(channel, key) {
+  if (!confirm('제목만 새로 짓습니다(본문·이미지는 그대로 · 1~2분).\n' + key)) return;
+  const r = await api('/api/retitle', { channel, file: key });
+  if (r && r.ok === false) alert(r.msg || '실행 실패'); tick();
+}
+async function reimg(channel, key) {
+  const what = channel === 'homepage' ? '커버 사진' : '본문 사진';
+  const hint = prompt(what + '만 다른 사진으로 바꿉니다 (글·제목은 그대로 · 2~5분).\n' + key + '\n\n원하는 장면이 있으면 적어 주세요 (비워 두면 글 내용에 맞춰 자동 선택)\n예: 노트북 화면에 기업 홈페이지가 떠 있는 사진', '');
+  if (hint === null) return;
+  const r = await api('/api/replace-images', { channel, file: key, hint: hint.trim() });
+  if (r && r.ok === false) alert(r.msg || '실행 실패'); tick();
+}
+
+// ── 개별 글 다시 생성 (큐 한 줄만 새로 쓰기) ──
+async function regen(channel, file) {
+  const label = { blogger: '블로거', tistory: '티스토리', homepage: '홈페이지 칼럼' }[channel] || channel;
+  // 다시 쓰기 = 이 글을 버리고 다른 주제로 새 글 1편을 쓴다 (선택 없이 바로)
+  if (!confirm(`[${label}] ${file}\n\n이 글 대신 다른 주제로 새 글을 씁니다 (제목·주소도 새로).\n기존 원고는 _재생성_백업 폴더에 보관되고, 실패하면 그대로 돌아옵니다.\n약 20~40분(Claude 사용). 진행할까요?`)) return;
+  const r = await api('/api/regenerate', { channel, file, mode: 'new' });
+  if (r && r.ok === false) alert('실패: ' + (r.msg || '알 수 없는 오류'));
+  tick();
+}
+
+// ── 티스토리 ──
+async function genT() {
+  const T = S && S.tistory; if (!T) return;
+  const force = T.todayCount >= T.targetCount;
+  if (force && !confirm('오늘 티스토리 글이 이미 ' + T.todayCount + '건 있습니다. 5개 블로그에 1편씩 더 생성할까요?')) return;
+  if (!force && !confirm(`티스토리 ${(S && S.tistory && S.tistory.targetCount) || ''}건 생성을 시작할까요? (약 20~40분, Claude 사용)`)) return;
+  await api('/api/generate-tistory', { force });
+  tick();
+}
+// ── 블로그별 1편 생성 ──
+// 블로거 수동 발행 정보 — Blogger 편집기에서 직접 올리거나 발행 후 검색 설명을 붙여넣을 때 쓰는 값
+function manualInfo(q) {
+  const rows = [
+    ['맞춤 퍼머링크', q.slug || ''],
+    ['검색 설명', q.meta_description || ''],
+    ['라벨', (q.labels || []).join(', ')],
+  ].filter(r => r[1]);
+  if (!rows.length) return '';
+  const key = esc(q.file || q.slug || '');
+  return `<details class="minfo" data-key="${key}" ${MINFO_OPEN.has(q.file || q.slug || '') ? 'open' : ''} ontoggle="minfoToggle(this)"><summary>수동 발행 정보 (퍼머링크 · 검색 설명 · 라벨)</summary>${rows.map(([k, v]) =>
+    `<div class="mrow"><span class="mlabel">${k}</span><span class="mval">${esc(v)}</span><button class="btn-sub mcopy" data-copy="${esc(v)}" onclick="copyVal(this)">복사</button></div>`).join('')}
+    <div class="muted" style="font-size:11.5px;margin-top:4px">Blogger 편집기 오른쪽 '퍼머링크 → 맞춤 퍼머링크', '검색 설명', '라벨'에 붙여넣으세요. 대시보드 [발행]·[공개 전환]으로 올리면 퍼머링크·라벨은 자동이고 검색 설명만 직접 넣으면 됩니다.</div></details>`;
+}
+const MINFO_OPEN = new Set();
+function minfoToggle(el) { const k = el.getAttribute('data-key'); if (el.open) MINFO_OPEN.add(k); else MINFO_OPEN.delete(k); }
+async function copyVal(btn) {
+  const v = btn.getAttribute('data-copy') || '';
+  try { await navigator.clipboard.writeText(v); }
+  catch { const t = document.createElement('textarea'); t.value = v; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  const o = btn.textContent; btn.textContent = '복사됨'; setTimeout(() => { btn.textContent = o; }, 1200);
+}
+
+function blogPostActs(channel, q) {
+  const f = esc(q.file);
+  const pv = `<a href="/preview?f=${encodeURIComponent(q.file)}" target="_blank"><button class="btn-sub">미리보기</button></a> `;
+  if (q.status === 'published') return pv;
+  if (channel === 'tistory') return pv + `<button class="btn-approve" onclick="postOneT('${f}')">발행</button> ` + fixBtns('tistory', q.file) + `<button class="btn-sub" onclick="markPubT('${f}')">발행 처리</button>`;
+  if (q.status === 'draft') return pv + (S.apiReady ? `<button class="btn-approve" onclick="postOne('${f}')">공개 전환</button> ` : '') + `<button class="btn-sub" onclick="markPub('${f}')">수동 발행 완료</button>`;
+  return pv + (S.apiReady ? `<button class="btn-approve" onclick="postOne('${f}')">발행</button> ` : '') + fixBtns('blogger', q.file) + `<button class="btn-sub" onclick="markPub('${f}')">수동 발행 완료</button>`;
+}
+function renderBlogList(elId, list, channel) {
+  const el = document.getElementById(elId); if (!el || !list) return;
+  const busy = !!(S && S.job && S.job.running);
+  el.innerHTML = list.map(b => {
+    const sub = b.account || String(b.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const ql = ((S.qLeft || {})[channel] || []).find(x => x.n === b.n);
+    const qlTxt = ql ? `남은 질문 ${ql.left}/${ql.total}${ql.variant ? ' (다른 진료과 질문을 바꿔 씀)' : ''}` : '';
+    const posts = (b.posts || []).slice().reverse().map(q => {
+      const st = q.status === 'published' ? ['pub', '발행됨'] : (q.status === 'draft' ? ['dr', '초안'] : ['pen', '대기']);
+      const live = q.published_url ? ` <a href="${esc(q.published_url)}" target="_blank" title="발행된 글 열기">↗</a>` : '';
+      const qline = q.q_no || q.question ? `<div class="qline">${q.q_no ? `<span class="qno">${esc(q.q_no)}${q.q_variant ? '·' + esc(q.q_variant) : ''}</span> ` : ''}${esc(q.question || '')}</div>` : '';
+      return `<div class="bpost">${qline}
+        <div><span class="st ${st[0]}" style="font-size:11.5px;padding:2px 9px">${st[1]}</span> <a class="t" href="/preview?f=${encodeURIComponent(q.file)}" target="_blank">${esc(q.title)}</a>${live}${q.score != null ? ` <span class="badge score">${q.score}/20</span>` : ''}</div>
+        <div style="margin-top:6px;line-height:2.1">${blogPostActs(channel, q)}</div>${channel === 'blogger' ? manualInfo(q) : ''}</div>`;
+    }).join('');
+    return `<tr>
+    <td style="white-space:nowrap;vertical-align:top"><span class="blogtag">${b.n}. ${esc(b.name)}</span><div class="muted" style="font-size:12px;margin-top:4px">${esc(sub)}</div><div class="muted" style="font-size:11.5px;margin-top:2px">${esc(qlTxt)}</div></td>
+    <td>${posts || '<span class="muted">오늘 쓴 글 없음</span>'}</td>
+    <td style="text-align:right;vertical-align:top"><button class="btn-sub" style="white-space:nowrap" ${busy ? 'disabled' : ''} onclick="genOne('${channel}', ${b.n}, '${esc(b.name)}')">1편 쓰기</button></td>
+  </tr>`;
+  }).join('');
+}
+async function genOne(channel, n, name) {
+  const label = channel === 'tistory' ? '티스토리' : '블로거';
+  if (!confirm(`${label} ${n}번 「${name}」 블로그에 글 1편을 생성할까요?\n(약 10~20분 · Claude 사용 · 발행은 하지 않음)`)) return;
+  const r = await api(channel === 'tistory' ? '/api/generate-tistory' : '/api/generate', { only: n });
+  if (r && r.ok === false) alert(r.msg || '실행 실패'); tick();
+}
+
+async function postT(mode) {
+  const label = mode === 'publish' ? '공개 발행' : '임시저장(초안)';
+  const warn = mode === 'publish' ? '\n(브라우저 창이 열리며 블로그당 최신 1건씩, 간격을 두고 자동 게시합니다)' : '';
+  if (!confirm('오늘 pending 티스토리 글을 ' + label + '할까요?' + warn)) return;
+  await api('/api/post-tistory', { mode });
+  tick();
+}
+async function postOneT(f) {
+  if (!confirm(f + ' 을 지금 티스토리에 공개 발행할까요? (브라우저 창이 열립니다)')) return;
+  await api('/api/post-tistory', { mode: 'publish', file: f });
+  tick();
+}
+async function markPubT(f) {
+  if (!confirm(f + ' 을 발행됨으로 표시할까요? (티스토리에 실제 발행한 뒤 누르세요)')) return;
+  await api('/api/queue-status', { file: f, status: 'published', channel: 'tistory' });
+  tick();
+}
+async function tLogin() {
+  if (!confirm('티스토리(카카오) 로그인 창을 열까요? 열린 Chrome 창에서 메디 티스토리 카카오 계정으로 직접 로그인하세요.')) return;
+  await api('/api/tistory-login', {});
+  tick();
+}
+async function tCats() {
+  if (!confirm('3개 티스토리 블로그의 카테고리 목록을 추출할까요? (로그인 세션 필요, 브라우저 창이 열립니다)')) return;
+  await api('/api/tistory-categories', {});
+  tick();
+}
+async function tFixCat() {
+  if (!confirm('이미 발행된 글 중 카테고리가 안 걸린 글에 카테고리만 지정할까요?\n(본문·이미지는 그대로, 주소도 유지됩니다. 글이 다시 저장되므로 수정일이 갱신돼요)')) return;
+  await api('/api/tistory-fixcat', {});
+  tick();
+}
+
+// ── 원격 업데이트 ──
+async function updCheck() {
+  const btn = document.getElementById('updBtn'); btn.disabled = true;
+  let r; try { r = await api('/api/update/check', {}); } finally { btn.disabled = false; }
+  if (!r || !r.ok) { alert('업데이트 확인 실패\n' + ((r && r.msg) || '')); return; }
+  if (!r.behind) { alert('최신 버전입니다 (v' + r.version + ')'); return; }
+  if (!confirm(`새 버전이 있습니다.\n\n현재 v${r.version} → 최신 v${r.latest || '?'}\n${r.notes ? '\n변경 내용:\n' + r.notes + '\n' : ''}\n지금 업데이트할까요?\n(원고·큐·로그인 정보는 그대로 유지되고, 끝나면 대시보드가 다시 켜집니다)`)) return;
+  const a = await api('/api/update/apply', {});
+  if (!a || a.ok === false) { alert('실패: ' + ((a && a.msg) || '')); return; }
+  alert('업데이트를 시작했습니다. 30초쯤 뒤 이 화면을 새로 고치세요.');
+  setTimeout(() => location.reload(), 30000);
+}
+
+// ── 메디 칼럼(medi.messeze.com) — /api/medi/* 사용 ──
+let MEDI_CATS_KEY = '';
+async function renderMedi() {
+  let M; try { M = await api('/api/medi/state'); } catch { return; }
+  if (!M || !M.queue) return;
+  const running = !!(S && S.job && S.job.running);
+  document.getElementById('mGenBtn').disabled = running;
+  document.getElementById('mLoginBtn').disabled = running;
+  document.getElementById('mSyncBtn').disabled = running;
+  const total = M.availableCats.reduce((a, c) => a + (M.left[c] || 0), 0);
+  document.getElementById('mInfo').innerHTML =
+    '생성 → 제목 눌러 미리보기 → [관리자에 비공개 저장] 으로 입력 → 관리자에서 확인 후 [공개 전환]. 바로 올리려면 [공개 발행]. '
+    + `<br>관리자 로그인: ${M.loggedIn ? '<b>완료</b>' : '<b style="color:var(--red)">아직 안 함</b> — [메디 관리자 로그인] 을 먼저 누르세요'}`
+    + ` · 글쓰기 화면 구조 기록: ${M.mapOk ? '완료' : '<b style="color:var(--red)">없음</b>'}`
+    + ` · 남은 질문 ${total}개(질문표 ${M.bankN}문항)` + (M.lastSync ? ` · 질문표 갱신 ${String(M.lastSync).replace('T', ' ').slice(0, 16)}` : '');
+  // 분류 선택(관리자에서 만든 분류만 켠다)
+  const key = JSON.stringify([M.availableCats, M.left]);
+  if (key !== MEDI_CATS_KEY && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('#mCats'))) {
+    MEDI_CATS_KEY = key;
+    document.getElementById('mCats').innerHTML = '<span class="muted">글을 쓸 분류(관리자 [분류]에 있는 것만 체크 — "병원 마케팅 운영"을 안 만들었으면 그 질문(대행·비용)은 "병원 검색 노출"로 들어갑니다): </span><br>' + M.allCats.map(c =>
+      `<label><input type="checkbox" value="${esc(c)}" ${M.availableCats.includes(c) ? 'checked' : ''} onchange="mCats()"> ${esc(c)} <span class="muted">(${M.left[c] || 0})</span></label>`).join('');
+  }
+  const stMap = { pending: ['pen', '대기'], saved_private: ['pen', '관리자 저장(비공개)'], published: ['pub', '발행됨'], rejected: ['fail', '반려'], error: ['fail', '오류'] };
+  document.getElementById('mqBody').innerHTML = M.queue.map(q => {
+    const p = q.post || {}; const slug = esc(p.slug || '');
+    const [cls, txt] = stMap[q.status] || ['', q.status];
+    const live = q.url ? ` <a href="${esc(q.url)}" target="_blank" title="발행된 글 열기">↗</a>` : '';
+    const prev = `<a href="/medi-preview/${encodeURIComponent(p.slug || '')}" target="_blank"><button class="btn-sub">미리보기</button></a> `;
+    const fields = `<a href="/medi-fields/${encodeURIComponent(p.slug || '')}" target="_blank"><button class="btn-sub">입력값 보기</button></a> `;
+    let act = prev;
+    const dis = running ? 'disabled' : '';
+    if (q.status === 'pending' || q.status === 'error') act += `<button class="btn-approve" onclick="mSave('${slug}','private')" ${dis}>관리자에 비공개 저장</button> <button class="btn-sub" onclick="mSave('${slug}','public')" ${dis}>공개 발행</button> `
+      + `<button class="btn-sub" onclick="mRegen('${slug}','new')" ${dis}>다시 쓰기</button> <button class="btn-sub" onclick="mRegen('${slug}','same')" ${dis}>같은 질문으로</button> `
+      + fields + `<button class="btn-sub" onclick="mRej('${slug}')">반려</button>`;
+    if (q.status === 'saved_private') act += `<button class="btn-approve" onclick="mSave('${slug}','public')" ${dis}>공개 전환</button> ` + fields + `<button class="btn-sub" onclick="mRej('${slug}')">반려</button>`;
+    const scN = q.score !== null && q.score !== undefined && String(q.score).match(/\d+/) ? Number(String(q.score).match(/\d+/)[0]) : null;
+    const scB = scN !== null ? ` <span class="badge score ${scN < 18 ? 'low' : ''}">${scN}/20</span>` : '';
+    const warns = (q.warnings || []).map(w => `<div class="mwarn" style="color:${w.startsWith('✗') ? 'var(--red)' : '#9a6b00'}">${esc(w)}</div>`).join('');
+    const err = q.status === 'error' && q.errors ? `<div class="mwarn" style="color:var(--red)">${esc(String(q.errors[0] || '').slice(0, 200))}</div>` : '';
+    const meta = [p.cat, p.date || q.created].filter(Boolean).map(esc).join(' · ');
+    return `<tr><td class="muted" style="font-size:12px;max-width:190px"><b>${esc(q.q_no || '')}</b><br>${esc((q.question || '').slice(0, 50))}</td>
+      <td><a class="t" href="/medi-preview/${encodeURIComponent(p.slug || '')}" target="_blank">${esc(p.title || '-')}</a>${live}${scB}<div class="muted" style="font-size:12px;margin-top:3px">${meta}</div>${err}${warns}
+        <div style="margin-top:8px;line-height:2.1">${act}</div></td>
+      <td style="white-space:nowrap"><span class="st ${cls}">${txt}</span></td></tr>`;
+  }).join('') || '<tr><td colspan="3" class="muted">아직 글이 없습니다 — [메디 칼럼 생성]을 눌러 시작하세요.</td></tr>';
+}
+async function mSync() {
+  const r = await api('/api/medi/sync-questions', {});
+  alert(r && r.ok ? `질문표를 갱신했습니다 (${r.n}문항).` : '질문표를 받지 못했습니다: ' + ((r && r.msg) || '알 수 없는 오류') + '\n기존 질문표를 계속 씁니다. 시트가 "링크가 있는 모든 사용자: 보기" 인지 확인하세요.');
+  tick();
+}
+async function mGen() {
+  if (!confirm('메디 칼럼 1편을 생성할까요?\n질문은 프로그램이 분류를 번갈아 가며 고릅니다. 5~15분 소요 · 생성만 하고 발행은 하지 않습니다.')) return;
+  const r = await api('/api/medi/generate', {}); if (r && r.ok === false) alert(r.msg || '실행 실패'); tick();
+}
+async function mLogin() {
+  if (!confirm('메디 관리자(medi.messeze.com/admin) 로그인 창을 열까요?\n열린 Chrome 창에서 직접 로그인하세요(비밀번호는 저장되지 않습니다). 로그인 후 글쓰기 화면 구조를 읽어 둡니다(읽기만 함).')) return;
+  await api('/api/medi/login', {}); tick();
+}
+async function mSave(slug, mode) {
+  const msg = mode === 'public'
+    ? `[메디] ${slug}\n\n공개로 발행합니다 — 저장 즉시 medi.messeze.com 에 노출됩니다. 진행할까요?`
+    : `[메디] ${slug}\n\n관리자 화면에 비공개로 입력·저장합니다(사이트에는 안 보임). 열리는 Chrome 창은 닫지 마세요. 진행할까요?`;
+  if (!confirm(msg)) return;
+  const r = await api('/api/medi/publish', { slug, mode }); if (r && r.ok === false) alert(r.msg || '실행 실패'); tick();
+}
+async function mRegen(slug, mode) {
+  if (!confirm(`[메디] ${slug}\n\n${mode === 'same' ? '같은 질문으로 처음부터 다시' : '이 글 대신 다른 질문으로 새 글 1편을'} 씁니다.\n기존 원고는 _재생성_백업_메디 폴더에 보관되고, 실패하면 그대로 돌아옵니다. 약 5~15분. 진행할까요?`)) return;
+  const r = await api('/api/medi/regenerate', { slug, mode }); if (r && r.ok === false) alert('실패: ' + (r.msg || '알 수 없는 오류')); tick();
+}
+async function mRej(slug) {
+  if (!confirm('이 글을 반려(발행 안 함)할까요?\n' + slug)) return;
+  const r = await api('/api/medi/reject', { slug }); if (r && r.ok === false) alert(r.msg || '실패'); tick();
+}
+async function mCats() {
+  const cats = [...document.querySelectorAll('#mCats input:checked')].map(x => x.value);
+  if (!cats.length) { alert('분류를 하나 이상 선택하세요'); renderMedi(); return; }
+  MEDI_CATS_KEY = '';
+  const r = await api('/api/medi/config', { availableCats: cats }); if (r && r.ok === false) alert(r.msg || '실패'); renderMedi();
+}
+
+tick(); setInterval(tick, 2500);
+</script>
+</body>
+</html>

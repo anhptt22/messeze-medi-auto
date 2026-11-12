@@ -1,0 +1,111 @@
+{
+  "port": 5015,
+  "model": "opus",
+  "claudeTimeoutSec": 3600,
+  "allowedTools": "Read,Write,Edit,Glob,Grep,Bash,WebSearch,WebFetch",
+  "promptsDir": "prompts",
+  "enginePrompt": "prompts/메디_블로거_자동작성_프롬프트.md",
+  "outputDir": "output/블로거",
+  "autoDaily": false,
+  "autoTime": "07:30",
+  "postsPerRun": 4,
+  "minScore": 18,
+  "minCharsNoSpace": 1800,
+  "titleMin": 22,
+  "titleMax": 38,
+  "publishStaggerMin": 5,
+  "_비고": "이 파일은 저장소 기본값입니다. 이 PC 에서만 바꿀 값(port·model·autoDaily 등)은 writer_config.local.json 에 같은 키로 적으세요(업데이트해도 유지됨). depts = 그 블로그가 쓰는 질문표 진료과, exceptDepts = 빼는 진료과, variant = 질문표에 그 진료과가 없을 때 다른 진료과 질문을 바꿔 쓰는 규칙.",
+  "blogs": [
+    {
+      "n": 1,
+      "name": "메디 종합",
+      "url": "https://medi-messeze.blogspot.com/",
+      "blogId": "2524003805845995628",
+      "exceptDepts": ["치과", "피부과", "성형외과", "동물병원"],
+      "desc": "병원·의원 전반(내과·정형외과·안과·한의원·소아과·산부인과·이비인후과 등) — 병원 홈페이지·플레이스·검색·AI 답변"
+    },
+    {
+      "n": 2,
+      "name": "치과",
+      "url": "https://medi-dental.blogspot.com/",
+      "blogId": "1414085747603060990",
+      "depts": ["치과"],
+      "desc": "치과(임플란트·교정 등) 원장님 대상 — 치과 홈페이지·플레이스·검색·AI 답변"
+    },
+    {
+      "n": 3,
+      "name": "피부·성형",
+      "url": "https://medi-beauty-clinic.blogspot.com/",
+      "blogId": "8953906283937433009",
+      "depts": ["피부과", "성형외과"],
+      "desc": "피부과·성형외과 원장님 대상 — 의료광고 기준을 특히 엄격히(전후 사진·효과·가격·이벤트 표현 금지)"
+    },
+    {
+      "n": 4,
+      "name": "동물병원",
+      "url": "https://medi-animal.blogspot.com/",
+      "blogId": "3907684034647174278",
+      "depts": ["동물병원"],
+      "variant": {
+        "dept": "동물병원",
+        "items": ["예방접종", "중성화 수술", "건강검진", "슬개골 진료", "스케일링", "피부 진료", "노령 반려동물 검진", "고양이 진료", "야간 응급 진료", "심장사상충 예방"]
+      },
+      "desc": "동물병원 원장님 대상 — 사람 병원의 의료법이 아니라 수의사법·동물병원 광고 기준을 따른다"
+    }
+  ],
+  "tistory": {
+    "enabled": true,
+    "autoDaily": false,
+    "enginePrompt": "prompts/메디_티스토리_자동작성_프롬프트.md",
+    "outputDir": "output/티스토리",
+    "sessionDir": "tistory-session",
+    "postsPerRun": 4,
+    "publishStaggerMin": 5,
+    "blogs": [
+      {
+        "n": 1,
+        "name": "메디 종합",
+        "account": "medi-messeze",
+        "exceptDepts": ["치과", "피부과", "성형외과", "동물병원"],
+        "desc": "병원·의원 전반 (블로거 medi-messeze 와 같은 축 — 질문은 다른 행)"
+      },
+      {
+        "n": 2,
+        "name": "치과",
+        "account": "medi-dental",
+        "depts": ["치과"],
+        "desc": "치과 원장님 대상 (블로거 medi-dental 과 같은 축 — 질문은 다른 행)"
+      },
+      {
+        "n": 3,
+        "name": "피부·성형",
+        "account": "medi-beauty",
+        "depts": ["피부과", "성형외과"],
+        "desc": "피부과·성형외과 원장님 대상 (블로거 medi-beauty-clinic 과 같은 축 — 질문은 다른 행)"
+      },
+      {
+        "n": 4,
+        "name": "동물병원",
+        "account": "medi-animal",
+        "depts": ["동물병원"],
+        "variant": {
+          "dept": "동물병원",
+          "items": ["예방접종", "중성화 수술", "건강검진", "슬개골 진료", "스케일링", "피부 진료", "노령 반려동물 검진", "고양이 진료", "야간 응급 진료", "심장사상충 예방"]
+        },
+        "desc": "동물병원 원장님 대상 (블로거 medi-animal 과 같은 축 — 질문은 다른 행)"
+      }
+    ]
+  },
+  "medi": {
+    "enginePrompt": "prompts/메세지_메디칼럼_자동작성_프롬프트.md",
+    "questionFile": "prompts/메세지_메디_질문표_v2.csv",
+    "outputDir": "output/메디칼럼",
+    "sessionDir": "medi-session",
+    "claudeTimeoutSec": 3600
+  },
+  "update": {
+    "repo": "",
+    "branch": "main",
+    "checkOnStart": true
+  }
+}

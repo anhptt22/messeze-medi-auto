@@ -1,0 +1,39 @@
+# ── 비밀 정보 (절대 커밋 금지) ──
+client_secret*.json
+credentials.json
+token.json
+token.*.json
+_token_*.txt
+update_token.txt
+tistory-session/
+medi-session/
+claude-accounts/
+
+# ── PC별 설정·실행 데이터 ──
+writer_config.local.json
+medi_config.json
+queue*.json
+categories_tistory.json
+*_topics_log.txt
+_last_run*.json
+_auto_state.json
+job.log
+posts/*
+!posts/.gitkeep
+output/
+data/
+tmp/
+_img_check/
+_재생성_백업_메디/
+*.png
+
+# ── 설치물·백업 ──
+node_modules/
+*.bak
+*.bak_*
+_backup_*/
+
+# 임시 실행 로그
+tmp_srv.*
+*.log
+*.err
