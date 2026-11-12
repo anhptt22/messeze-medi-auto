@@ -21,7 +21,7 @@
 **방법 A — git 으로 받기 (권장: 업데이트가 가장 간단)**
 
 ```
-git clone https://github.com/<소유자>/messeze-medi-auto.git
+git clone https://github.com/anhptt22/messeze-medi-auto.git
 ```
 
 GitHub Desktop 을 쓰면 File → Clone repository 로 받아도 됩니다.
@@ -29,7 +29,7 @@ GitHub Desktop 을 쓰면 File → Clone repository 로 받아도 됩니다.
 **방법 B — ZIP 으로 받기**
 
 GitHub 저장소 화면 → Code → Download ZIP → 원하는 폴더에 압축 풀기.
-(비공개 저장소라면 업데이트를 위해 `update_token.txt` 에 읽기 전용 GitHub 토큰 한 줄을 넣어야 합니다.)
+주소: https://github.com/anhptt22/messeze-medi-auto (공개 저장소 — 계정·토큰 없이 받고 업데이트할 수 있습니다)
 
 받은 뒤:
 

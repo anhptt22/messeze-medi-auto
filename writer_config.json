@@ -104,7 +104,7 @@
     "claudeTimeoutSec": 3600
   },
   "update": {
-    "repo": "",
+    "repo": "anhptt22/messeze-medi-auto",
     "branch": "main",
     "checkOnStart": true
   }
