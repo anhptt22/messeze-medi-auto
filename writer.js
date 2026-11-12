@@ -812,6 +812,23 @@ const server = http.createServer(async (req, res) => {
       }
       return send(200, fs.readFileSync(f, 'utf8'), 'text/plain; charset=utf-8');
     }
+    if (url.pathname === '/api/open-in-editor' && req.method === 'POST') {
+      // 원고 HTML 파일을 이 PC 의 VS Code 로 연다(없으면 메모장) — 코드를 보고 복사하는 용도
+      const b = await body(req);
+      const f = path.join(E.paths(E.loadCfg()).posts, path.basename(String(b.file || '')));
+      if (!/\.html$/i.test(f) || !fs.existsSync(f)) return send(404, { ok: false, msg: '원고 파일이 없습니다' });
+      const cands = [
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Microsoft VS Code', 'Code.exe'),
+        'C:\\Program Files\\Microsoft VS Code\\Code.exe',
+        'C:\\Program Files (x86)\\Microsoft VS Code\\Code.exe',
+      ];
+      const code = cands.find(p => { try { return fs.existsSync(p); } catch { return false; } });
+      try {
+        const p = spawn(code || 'notepad.exe', [f], { detached: true, stdio: 'ignore' });
+        p.on('error', () => {}); p.unref();
+      } catch (e) { return send(500, { ok: false, msg: e.message }); }
+      return send(200, { ok: true, editor: code ? 'VS Code' : '메모장', path: f });
+    }
     if (url.pathname.startsWith('/post-img/')) {
       // 원고에 넣은 로컬 사진(홈페이지 화면 캡처 등, posts\_img 폴더) — 미리보기용.
       // 티스토리 발행기는 이 주소(localhost:5012/post-img/파일명)를 로컬 파일로 읽어 티스토리에 업로드한다.
