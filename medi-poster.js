@@ -91,7 +91,14 @@ async function openForm(page, map) {
   if (!(await ctl(page, '슬러그').count().catch(() => 0))) throw new Error('글쓰기 화면(슬러그 칸)을 찾지 못했습니다');
 }
 
+// 표를 예전 방식처럼 <div class="tbl"> 로 감싼다 — 사이트 CSS(.tbl table) 가 적용되어 테두리가 나온다. 이미 감싼 표는 건너뜀.
+function wrapTables(html) {
+  return String(html).replace(/(<div class="tbl">\s*)?<table\b[\s\S]*?<\/table>(\s*<\/div>)?/gi, (m, pre) =>
+    pre ? m : '<div class="tbl">' + m + '</div>');
+}
+
 async function setBody(page, html) {
+  html = wrapTables(html);
   const ok = await page.evaluate((h) => {
     const el = document.querySelector('.ck-editor__editable');
     const ed = el && el.ckeditorInstance;
