@@ -99,6 +99,7 @@
   "medi": {
     "enginePrompt": "prompts/메세지_메디칼럼_자동작성_프롬프트.md",
     "questionFile": "prompts/메세지_메디_질문표_v2.csv",
+    "postsPerDay": 2,
     "outputDir": "output/메디칼럼",
     "sessionDir": "medi-session",
     "claudeTimeoutSec": 3600

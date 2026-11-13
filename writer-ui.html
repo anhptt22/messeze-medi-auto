@@ -218,9 +218,9 @@
     <div class="pane" id="paneM">
       <div class="panehead"><span class="pdot"></span>홈페이지 칼럼 <span class="psub">medi.messeze.com/blog — 병원 전용 · 관리자(/admin) 화면에 입력</span></div>
       <div class="card">
-        <h2><span class="eyebrow">MEDI</span>메디 칼럼 (하루 1편)</h2>
+        <h2><span class="eyebrow">MEDI</span>메디 칼럼 <span id="mPerDay">(하루 2편)</span></h2>
         <div class="row" style="margin-top:12px">
-          <button class="btn-main" id="mGenBtn" onclick="mGen()">메디 칼럼 생성 (1편)</button>
+          <button class="btn-main" id="mGenBtn" onclick="mGen()">메디 칼럼 생성</button>
           <button class="btn-sub" id="mLoginBtn" onclick="mLogin()">메디 관리자 로그인</button>
           <button class="btn-sub" id="mSyncBtn" onclick="mSync()">질문표 새로 받기(구글 시트)</button>
           <a href="https://medi.messeze.com/blog" target="_blank"><button class="btn-sub">발행된 글 목록 보기</button></a>
@@ -668,12 +668,15 @@ async function updCheck() {
 }
 
 // ── 메디 칼럼(medi.messeze.com) — /api/medi/* 사용 ──
-let MEDI_CATS_KEY = '';
+let MEDI_CATS_KEY = '', MEDI_LEFT = 1;
 async function renderMedi() {
   let M; try { M = await api('/api/medi/state'); } catch { return; }
   if (!M || !M.queue) return;
   const running = !!(S && S.job && S.job.running);
   document.getElementById('mGenBtn').disabled = running;
+  MEDI_LEFT = Math.max(0, (M.perDay || 1) - (M.todayCount || 0));
+  document.getElementById('mPerDay').textContent = `(하루 ${M.perDay || 1}편 · 오늘 ${M.todayCount || 0}편)`;
+  document.getElementById('mGenBtn').textContent = MEDI_LEFT ? `메디 칼럼 생성 (${MEDI_LEFT}편)` : '메디 칼럼 1편 더 생성';
   document.getElementById('mLoginBtn').disabled = running;
   document.getElementById('mSyncBtn').disabled = running;
   const total = M.availableCats.reduce((a, c) => a + (M.left[c] || 0), 0);
@@ -719,8 +722,12 @@ async function mSync() {
   tick();
 }
 async function mGen() {
-  if (!confirm('메디 칼럼 1편을 생성할까요?\n질문은 프로그램이 분류를 번갈아 가며 고릅니다. 5~15분 소요 · 생성만 하고 발행은 하지 않습니다.')) return;
-  const r = await api('/api/medi/generate', {}); if (r && r.ok === false) alert(r.msg || '실행 실패'); tick();
+  const n = MEDI_LEFT || 1;
+  const msg = MEDI_LEFT
+    ? `메디 칼럼 ${n}편을 생성할까요?\n질문은 프로그램이 분류를 번갈아 가며 고릅니다. 편당 5~15분 소요 · 생성만 하고 발행은 하지 않습니다.`
+    : '오늘 목표 편수는 이미 채웠습니다. 1편 더 생성할까요?\n5~15분 소요 · 생성만 하고 발행은 하지 않습니다.';
+  if (!confirm(msg)) return;
+  const r = await api('/api/medi/generate', { count: n }); if (r && r.ok === false) alert(r.msg || '실행 실패'); tick();
 }
 async function mLogin() {
   if (!confirm('메디 관리자(medi.messeze.com/admin) 로그인 창을 열까요?\n열린 Chrome 창에서 직접 로그인하세요(비밀번호는 저장되지 않습니다). 로그인 후 글쓰기 화면 구조를 읽어 둡니다(읽기만 함).')) return;

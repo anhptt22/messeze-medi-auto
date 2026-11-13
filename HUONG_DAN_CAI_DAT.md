@@ -111,7 +111,7 @@ Khi xong, các chip ở đầu trang chuyển sang: `claude OK`, `블로거 API 
 ## Phần 6 — Cách dùng hằng ngày (nói ngắn gọn cho người dùng)
 
 1. Mở `RUN_dashboard.bat`.
-2. Bấm **[1편 쓰기]** ở blog muốn viết, hoặc **[티스토리 4건 생성]** / **[블로거 4건 생성]** để viết cả 4 blog. Một bài mất khoảng 6–15 phút. Cột homepage: **[메디 칼럼 생성 (1편)]**.
+2. Bấm **[1편 쓰기]** ở blog muốn viết, hoặc **[티스토리 4건 생성]** / **[블로거 4건 생성]** để viết cả 4 blog. Một bài mất khoảng 6–15 phút. Cột homepage: **[메디 칼럼 생성 (2편)]** (mỗi ngày 2 bài).
 3. Bấm **[미리보기]** để đọc bài. Nếu cần: **[제목 다시]** (đặt lại tiêu đề), **[이미지 교체]** (đổi ảnh), **[다시 쓰기]** (viết lại).
 4. Chỉ bài nào bấm **[발행]** mới được đăng. Viết bài xong thì bài chưa lên blog.
 5. Nếu Tistory hiện captcha lúc đăng, người dùng tự giải trong cửa sổ Chrome; chương trình chờ và đăng tiếp.

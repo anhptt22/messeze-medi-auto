@@ -688,9 +688,11 @@ const server = http.createServer(async (req, res) => {
       const bank = M.loadBank(), used = M.usedQuestions();
       const left = {}; M.ALL_CATS.forEach(c => left[c] = 0);
       bank.filter(r => !used.has(r.no)).forEach(r => { left[r.cat] = (left[r.cat] || 0) + 1; });
+      const perDay = Math.min(6, Math.max(1, Number((E.loadCfg().medi || {}).postsPerDay) || 1));
+      const todayCount = (q.posts || []).filter(x => x.status !== 'rejected' && x.created === E.today()).length;
       const sess = path.join(M.SESSION_DIR(), 'auth_medi.json');
       let mapOk = false; try { mapOk = !!JSON.parse(fs.readFileSync(path.join(M.SESSION_DIR(), 'medi-admin-map.json'), 'utf8')).newUrl; } catch {}
-      return send(200, { queue: (q.posts || []).slice().reverse().slice(0, 15), availableCats: conf.availableCats, allCats: M.ALL_CATS, left, bankN: bank.length, loggedIn: fs.existsSync(sess), mapOk, lastSync: conf.lastSync, sheetUrl: conf.questionSheetUrl });
+      return send(200, { queue: (q.posts || []).slice().reverse().slice(0, 15), perDay, todayCount, availableCats: conf.availableCats, allCats: M.ALL_CATS, left, bankN: bank.length, loggedIn: fs.existsSync(sess), mapOk, lastSync: conf.lastSync, sheetUrl: conf.questionSheetUrl });
     }
     if (url.pathname === '/api/medi/sync-questions' && req.method === 'POST') {
       const M = require('./medi-lib');
@@ -698,7 +700,19 @@ const server = http.createServer(async (req, res) => {
       return send(200, r.ok ? { ok: true, n: r.n } : { ok: false, msg: r.msg });
     }
     if (url.pathname === '/api/medi/generate' && req.method === 'POST') {
-      if (!runJob('메디 칼럼 생성', () => spawnJob('medi-gen.js', [], 60))) return send(409, { ok: false, msg: '다른 작업 실행 중' });
+      // 하루 목표(medi.postsPerDay)에서 오늘 이미 쓴 편수를 뺀 만큼 이어서 쓴다. 목표를 채운 뒤에 누르면 1편 더.
+      const b = await body(req);
+      const M = require('./medi-lib');
+      const perDay = Math.min(6, Math.max(1, Number((E.loadCfg().medi || {}).postsPerDay) || 1));
+      const done = (M.loadQueue().posts || []).filter(x => x.status !== 'rejected' && x.created === E.today()).length;
+      const n = Math.min(6, Math.max(1, Number(b.count) || (perDay - done)));
+      if (!runJob(`메디 칼럼 생성(${n}편)`, async () => {
+        for (let i = 1; i <= n; i++) {
+          if (n > 1) jlog(`── 메디 칼럼 ${i}/${n}편 ──`);
+          const code = await spawnJob('medi-gen.js', [], 60);
+          if (code !== 0) { jlog(`! ${i}번째 글 생성이 실패해 여기서 멈춥니다(코드 ${code}).`); break; }
+        }
+      })) return send(409, { ok: false, msg: '다른 작업 실행 중' });
       return send(200, { ok: true });
     }
     if (url.pathname === '/api/medi/regenerate' && req.method === 'POST') {
