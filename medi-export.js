@@ -6,6 +6,11 @@ const L = require('./medi-lib');
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // 사이트(medi.messeze.com) 글 페이지의 .article / .pcover 스타일을 그대로 옮긴 미리보기
+// 발행기(medi-poster.js)와 같은 처리: 표를 <div class="tbl"> 로 감싼다. 미리보기도 발행된 화면과 같은 CSS 로 보여 준다.
+function wrapTables(html) {
+  return String(html).replace(/(<div class="tbl">\s*)?<table\b[\s\S]*?<\/table>(\s*<\/div>)?/gi, (m, pre) => (pre ? m : '<div class="tbl">' + m + '</div>'));
+}
+
 function renderHtml(it) {
   const p = (it && it.post) || {};
   const cover = p.photo ? `<img class="cover" src="${esc(String(p.photo).replace(/&amp;/g, '&'))}" alt="">` : '';
@@ -27,15 +32,16 @@ function renderHtml(it) {
 .article h3{font-size:17px;margin:26px 0 8px}
 .article b{color:var(--ink)}
 .article blockquote{background:var(--sky);border-left:4px solid var(--cobalt);border-radius:0 14px 14px 0;padding:20px 24px;font-size:16px;color:var(--navy);line-height:1.75;margin:34px 0}
-.article table{width:100%;border-collapse:collapse;margin:0 0 30px;font-size:14.5px}
-.article th{background:#F1F5FF;text-align:left;padding:11px 14px;border:1px solid #E1E8F5;color:var(--ink)}
-.article td{padding:11px 14px;border:1px solid #E1E8F5;color:#333C4E}
+.tbl{overflow-x:auto;margin:30px 0}
+.tbl table{width:100%;border-collapse:collapse;font-size:15px;min-width:480px}
+.tbl th,.tbl td{border:1px solid #E5EAF2;padding:12px 14px;text-align:left;vertical-align:top;line-height:1.6}
+.tbl th{background:#EAF1FF;font-weight:800;color:var(--ink)}
 .foot{max-width:720px;margin:20px auto 50px;padding:0 20px;color:#8B95A7;font-size:12.5px}
 </style></head><body>
 <div class="pv"><span>발행 전 미리보기 · ${esc(it.status)}${it.warnings && it.warnings.length ? ' · 확인 ' + it.warnings.length + '건' : ''}</span></div>
 <div class="head"><div class="meta">${esc(p.cat)} · ${esc(p.date)} · ${esc(p.slug)}${it.score ? ' · 채점 ' + esc(it.score) : ''}</div><h1>${esc(p.title)}</h1></div>
 <div class="pcover">${cover}<span class="tag">${esc(p.cat)}</span></div>
-<article class="article">${p.body || ''}</article>
+<article class="article">${wrapTables(p.body || '')}</article>
 <div class="foot">요약(목록 카드·검색 설명): ${esc(p.summary)}</div>
 </body></html>`;
 }

@@ -110,6 +110,44 @@ async function setBody(page, html) {
   if (!ok) throw new Error('본문 편집기(CKEditor)에 접근하지 못했습니다');
   const n = await page.evaluate(() => (document.querySelector('.ck-editor__editable') || {}).innerText || '').catch(() => '');
   if (String(n).replace(/\s+/g, '').length < 200) throw new Error('본문이 편집기에 들어가지 않았습니다');
+  await keepTableWrap(page);
+}
+
+// ★표 테두리 유지 (2026-11-14)
+// 사이트는 <div class="tbl"><table> 안의 표에만 테두리·머리줄 색을 입힌다(.tbl table / .tbl th, .tbl td).
+// 그런데 관리자 편집기(CKEditor 5)는 저장할 때 표를 <figure class="table"><table> 로 바꿔 내보내서
+// 감싸 둔 div.tbl 이 사라지고, 발행된 글의 표가 테두리 없이 나온다.
+// → 편집기가 내보내는 HTML 에서 figure.table 을 div.tbl 로 되돌린 값을 저장 값으로 고정한다.
+//   (편집기에 지금 들어 있는 내용을 기준으로 하므로, 관리자에서 사람이 고친 글도 그대로 살린다)
+// 반환: 표 개수(없으면 0), 편집기를 못 찾으면 -1
+async function keepTableWrap(page) {
+  return page.evaluate(() => {
+    const el = document.querySelector('.ck-editor__editable');
+    const ed = el && el.ckeditorInstance;
+    if (!ed) return -1;
+    const cur = String(ed.getData());
+    let n = 0;
+    const raw = cur
+      .replace(/<figure class="table"[^>]*>(\s*<table\b[\s\S]*?<\/table>\s*)<\/figure>/gi, (m, t) => { n++; return '<div class="tbl">' + t + '</div>'; })
+      .replace(/(<div class="tbl">\s*)?(<table\b[\s\S]*?<\/table>)(\s*<\/div>)?/gi, (m, pre, t) => (pre ? m : (n++, '<div class="tbl">' + t + '</div>')));
+    if (!n) return 0;
+    try { ed.data.get = () => raw; } catch {}
+    try { ed.getData = () => raw; } catch {}
+    try { if (ed.updateSourceElement) ed.updateSourceElement(); } catch {}
+    try { if (ed.sourceElement && 'value' in ed.sourceElement) ed.sourceElement.value = raw; } catch {}
+    return (raw.match(/<div class="tbl">/g) || []).length;
+  }).catch(() => -1);
+}
+
+// 발행 뒤 실제 페이지에서 표가 div.tbl 로 감싸져 있는지 확인(감싸져 있지 않으면 테두리가 안 나온다)
+async function tableLiveCheck(slug, bodyHtml) {
+  if (!/<table\b/i.test(String(bodyHtml))) return;
+  const r = await L.getText(`${L.SITE}/blog/${encodeURIComponent(slug)}?t=${Date.now()}`, 20000);
+  if (r.status !== 200) return;
+  const tables = (r.text.match(/<table\b/gi) || []).length;
+  const wrapped = (r.text.match(/<div class="tbl">\s*<table\b/gi) || []).length;
+  if (tables && wrapped >= tables) log(`  표 확인: ${tables}개 모두 테두리 서식(div.tbl) 적용됨`);
+  else log(`  ! 표 확인: 발행된 글의 표 ${tables}개 중 ${wrapped}개만 테두리 서식(div.tbl)이 적용됐습니다 — 글을 열어 표가 제대로 보이는지 확인하세요`);
 }
 
 async function fillAndSave(page, it, imgFile, mode) {
@@ -160,6 +198,8 @@ async function flipToPublic(page, it, map) {
   await page.waitForTimeout(2000);
   const stSel = ctl(page, '상태', 'select');
   await stSel.selectOption({ label: '공개' });
+  // 저장된 글을 다시 열면 편집기가 표를 figure.table 로 바꿔 놓는다 → 저장 전에 div.tbl 로 되돌린다
+  { const n = await keepTableWrap(page); if (n > 0) log(`  표 ${n}개: 테두리 서식(div.tbl) 유지`); else if (n < 0) log('  ! 편집기를 찾지 못해 표 서식을 확인하지 못했습니다'); }
   if (DRY) { log('--dry: 상태를 공개로 바꿔 보기만 하고 저장하지 않았습니다'); return 'dry'; }
   await page.getByRole('button', { name: '저장' }).first().click({ timeout: 10000 });
   await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {});
@@ -206,7 +246,7 @@ async function flipToPublic(page, it, map) {
       log('저장 완료 — 사이트 반영 확인 중(최대 90초)…');
       let live = false;
       for (let i = 0; i < 18 && !live; i++) { live = await L.slugIsLive(SLUG); if (!live) await page.waitForTimeout(5000).catch(() => {}); }
-      if (live) { setStatus('published', { url: `${L.SITE}/blog/${SLUG}`, publishedAt: new Date().toISOString(), errors: undefined }); log(`✓ 발행 완료: ${L.SITE}/blog/${SLUG}`); }
+      if (live) { setStatus('published', { url: `${L.SITE}/blog/${SLUG}`, publishedAt: new Date().toISOString(), errors: undefined }); log(`✓ 발행 완료: ${L.SITE}/blog/${SLUG}`); await tableLiveCheck(SLUG, it.post.body).catch(() => {}); }
       else { setStatus('error', { errors: ['저장은 됐으나 90초 안에 사이트에서 글이 확인되지 않음 — 관리자 [블로그] 목록과 상태를 확인하세요'] }); log('! 저장은 했지만 사이트에서 글이 아직 보이지 않습니다 — 관리자 목록·상태를 확인하세요'); process.exitCode = 1; }
     } else {
       setStatus('saved_private', { savedAt: new Date().toISOString(), errors: undefined });
