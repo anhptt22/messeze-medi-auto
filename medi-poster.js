@@ -3,6 +3,7 @@
 //        node medi-poster.js publish --slug=<slug> --mode=private   (관리자에 비공개로 저장 — 사이트에는 안 보임)
 //        node medi-poster.js publish --slug=<slug> --mode=public    (공개 발행 — 저장 즉시 사이트 노출)
 //        (saved_private 상태의 글에 --mode=public → 저장된 글을 열어 상태만 '공개'로 바꾼다)
+//        node medi-poster.js fixtable --slug=<slug>                 (이미 발행된 글의 표 테두리 복구 — 상태·내용은 그대로, 표 감싸기만 되돌려 저장)
 //        옵션 --dry : 입력만 하고 저장하지 않는다(스크린샷 저장)
 // ★로그인 정보는 다루지 않는다 — 세션(chrome-profile)이 없으면 열린 창에서 사용자가 직접 로그인할 때까지 기다린다(최대 10분).
 const fs = require('fs');
@@ -186,16 +187,59 @@ async function fillAndSave(page, it, imgFile, mode) {
   return 'saved';
 }
 
-async function flipToPublic(page, it, map) {
+// 관리자 글 목록에서 이 글의 수정 화면을 연다. 순서: ① 저장 직후 기록해 둔 주소 ② 목록에서 슬러그 링크 ③ 목록에서 제목 글자(여러 쪽까지)
+async function openSavedPost(page, it, map) {
+  const slug = it.post.slug, title = it.post.title;
+  const norm = (x) => String(x || '').replace(/\s+/g, ' ').trim();
+  const isEdit = async () => {
+    const v = await ctl(page, '슬러그').inputValue({ timeout: 3000 }).catch(() => null);
+    return v !== null && norm(v) === slug;
+  };
+  // ① 저장 직후 화면 주소(수정 화면으로 넘어간 경우)
+  if (it.savedUrl && /^https?:\/\//.test(it.savedUrl) && it.savedUrl !== (map.listUrl || '')) {
+    await page.goto(it.savedUrl, { waitUntil: 'domcontentloaded' }).catch(() => {});
+    await page.waitForTimeout(1200);
+    if (await isEdit()) return 'savedUrl';
+  }
   const listUrl = map.listUrl || (ADMIN_URL + '/blog');
   await page.goto(listUrl, { waitUntil: 'domcontentloaded' }).catch(() => {});
   if (!(await isAdminIn(page))) throw new Error('관리자 로그인 필요 — [메디 관리자 로그인] 후 다시 시도하세요');
-  const row = page.locator('tr', { hasText: it.post.title }).first();
-  if (!(await row.count())) throw new Error('관리자 글 목록에서 이 글을 찾지 못했습니다: ' + it.post.title);
-  const edit = row.locator('a', { hasText: /수정|편집|보기/ }).first();
-  if (await edit.count()) await edit.click(); else await row.locator('a').first().click();
-  await page.waitForLoadState('domcontentloaded').catch(() => {});
-  await page.waitForTimeout(2000);
+  const seen = [];
+  for (let pg = 1; pg <= 8; pg++) {
+    await page.waitForTimeout(800);
+    // ② 슬러그가 들어간 링크(공개 글 주소가 아니라 관리자 안의 수정 링크일 때)
+    const bySlug = page.locator(`a[href*="${slug}"]`).first();
+    if (await bySlug.count()) {
+      await bySlug.click(); await page.waitForLoadState('domcontentloaded').catch(() => {}); await page.waitForTimeout(1500);
+      if (await isEdit()) return 'slugLink';
+      await page.goBack().catch(() => {}); await page.waitForTimeout(800);
+    }
+    // ③ 제목 글자가 있는 줄(표·목록·카드 모두) → 그 줄의 수정 링크, 없으면 제목 자체 클릭
+    const t = page.getByText(title, { exact: false }).first();
+    if (await t.count()) {
+      const row = t.locator('xpath=ancestor-or-self::*[self::tr or self::li or self::article or contains(@class,"card") or contains(@class,"item") or contains(@class,"row")][1]');
+      const scope = (await row.count()) ? row : t;
+      const edit = scope.locator('a', { hasText: /수정|편집|보기|edit/i }).first();
+      if (await edit.count()) await edit.click();
+      else if (await scope.locator('a').count()) await scope.locator('a').first().click();
+      else await t.click();
+      await page.waitForLoadState('domcontentloaded').catch(() => {}); await page.waitForTimeout(1500);
+      if (await isEdit()) return 'titleRow';
+      await page.goBack().catch(() => {}); await page.waitForTimeout(800);
+    }
+    seen.push(...(await page.locator('tbody tr, ul li, article').allInnerTexts().catch(() => [])).slice(0, 3).map(x => norm(x).slice(0, 28)));
+    // 다음 쪽
+    const next = page.locator('a[rel=next], a:has-text("다음"), a:has-text("›"), a:has-text("»"), .pagination a:has-text(">")').first();
+    if (!(await next.count())) break;
+    await next.click().catch(() => {}); await page.waitForLoadState('domcontentloaded').catch(() => {});
+  }
+  const pageTitle = await page.title().catch(() => '');
+  throw new Error(`관리자 글 목록에서 이 글을 찾지 못했습니다 — 관리자 [블로그]에 이 글이 실제로 있는지(비공개) 먼저 확인하세요. 있으면 관리자에서 상태만 '공개'로 바꾸고 이 글은 [관리자에서 직접 처리함]을 누르세요. (제목: ${title} · 화면: ${pageTitle} ${page.url()} · 목록 일부: ${seen.slice(0, 3).join(' / ') || '없음'})`);
+}
+
+async function flipToPublic(page, it, map) {
+  const how = await openSavedPost(page, it, map);
+  log('  저장된 글 열기 성공(' + how + ')');
   const stSel = ctl(page, '상태', 'select');
   await stSel.selectOption({ label: '공개' });
   // 저장된 글을 다시 열면 편집기가 표를 figure.table 로 바꿔 놓는다 → 저장 전에 div.tbl 로 되돌린다
@@ -213,7 +257,45 @@ async function flipToPublic(page, it, map) {
     for (const it of q.posts) console.log(`${it.status}\t${it.post && it.post.slug}\t${it.post && it.post.title}`);
     return;
   }
-  if (cmd !== 'publish') { log('사용법: list | publish --slug=<slug> --mode=private|public [--dry]'); process.exit(1); }
+  if (cmd === 'fixtable') {
+    // 관리자에서 사람이 글을 열어 저장하면 편집기가 표의 div.tbl 을 figure.table 로 바꿔 저장해 테두리가 사라진다 → 그런 글을 복구한다
+    const it0 = q.posts.find(x => x.post && x.post.slug === SLUG);
+    if (!it0) { log('! 큐에서 글을 찾지 못했습니다: ' + SLUG); process.exit(1); }
+    const live0 = await L.getText(`${L.SITE}/blog/${encodeURIComponent(SLUG)}?t=${Date.now()}`, 20000);
+    if (live0.status !== 200) { log('! 사이트에서 이 글이 열리지 않습니다(공개 상태인지 확인): ' + SLUG); process.exit(1); }
+    const art = (live0.text.match(/<article class="article[^"]*">([\s\S]*?)<\/article>/) || [0, ''])[1];
+    const nT = (art.match(/<table\b/gi) || []).length, nW = (art.match(/<div class="tbl">\s*<table\b/gi) || []).length;
+    if (!nT) { log('이 글에는 표가 없습니다.'); return; }
+    if (nW >= nT) { log('이미 표 서식이 정상입니다(표 ' + nT + '개 모두 div.tbl). 고칠 것이 없습니다.'); return; }
+    log(`표 ${nT}개 중 ${nW}개만 정상 — 복구를 진행합니다`);
+    const { chromium } = requirePlaywright();
+    fs.mkdirSync(USER_DATA_DIR, { recursive: true });
+    const ctx = await chromium.launchPersistentContext(USER_DATA_DIR, { headless: false, channel: 'chrome', viewport: { width: 1400, height: 1000 } });
+    const page = ctx.pages()[0] || (await ctx.newPage());
+    try {
+      const how = await openSavedPost(page, it0, readMap());
+      log('  글 열기 성공(' + how + ')');
+      const n = await keepTableWrap(page);
+      if (n <= 0) throw new Error('편집기에서 표를 찾지 못했습니다');
+      if (DRY) { log('--dry: 표 ' + n + '개를 div.tbl 로 되돌려 보기만 했고 저장하지 않았습니다'); await ctx.close().catch(() => {}); return; }
+      await page.getByRole('button', { name: '저장' }).first().click({ timeout: 10000 });
+      await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {});
+      await page.waitForTimeout(2500);
+      let ok = false;
+      for (let i = 0; i < 12 && !ok; i++) {
+        const r = await L.getText(`${L.SITE}/blog/${encodeURIComponent(SLUG)}?t=${Date.now()}`, 20000);
+        const a2 = (r.text.match(/<article class="article[^"]*">([\s\S]*?)<\/article>/) || [0, ''])[1];
+        const t2 = (a2.match(/<table\b/gi) || []).length, w2 = (a2.match(/<div class="tbl">\s*<table\b/gi) || []).length;
+        ok = t2 > 0 && w2 >= t2;
+        if (!ok) await page.waitForTimeout(5000).catch(() => {});
+      }
+      if (ok) log('✓ 표 서식 복구 완료: ' + L.SITE + '/blog/' + SLUG);
+      else { log('! 저장은 했지만 1분 안에 사이트에서 표 서식이 확인되지 않았습니다 — 글을 열어 확인하세요'); process.exitCode = 1; }
+    } catch (e) { log('✗ 실패: ' + e.message); await failShot(page, 'fixtable_' + SLUG); process.exitCode = 1; }
+    await ctx.close().catch(() => {});
+    return;
+  }
+  if (cmd !== 'publish') { log('사용법: list | publish --slug=<slug> --mode=private|public [--dry] | fixtable --slug=<slug>'); process.exit(1); }
   const it = q.posts.find(x => x.post && x.post.slug === SLUG);
   if (!it) { log('! 큐에서 글을 찾지 못했습니다: ' + SLUG); process.exit(1); }
   if (it.status === 'published') { log('이미 발행된 글입니다: ' + (it.url || SLUG)); return; }
@@ -246,16 +328,18 @@ async function flipToPublic(page, it, map) {
       log('저장 완료 — 사이트 반영 확인 중(최대 90초)…');
       let live = false;
       for (let i = 0; i < 18 && !live; i++) { live = await L.slugIsLive(SLUG); if (!live) await page.waitForTimeout(5000).catch(() => {}); }
-      if (live) { setStatus('published', { url: `${L.SITE}/blog/${SLUG}`, publishedAt: new Date().toISOString(), errors: undefined }); log(`✓ 발행 완료: ${L.SITE}/blog/${SLUG}`); await tableLiveCheck(SLUG, it.post.body).catch(() => {}); }
-      else { setStatus('error', { errors: ['저장은 됐으나 90초 안에 사이트에서 글이 확인되지 않음 — 관리자 [블로그] 목록과 상태를 확인하세요'] }); log('! 저장은 했지만 사이트에서 글이 아직 보이지 않습니다 — 관리자 목록·상태를 확인하세요'); process.exitCode = 1; }
+      if (live) { setStatus('published', { url: `${L.SITE}/blog/${SLUG}`, publishedAt: new Date().toISOString(), errors: undefined, flipError: undefined }); log(`✓ 발행 완료: ${L.SITE}/blog/${SLUG}`); await tableLiveCheck(SLUG, it.post.body).catch(() => {}); }
+      else { setStatus(isFlip ? 'saved_private' : 'error', isFlip ? { flipError: '공개로 저장했으나 90초 안에 사이트에서 글이 확인되지 않음 — 관리자 [블로그] 목록의 상태를 확인하세요' } : { errors: ['저장은 됐으나 90초 안에 사이트에서 글이 확인되지 않음 — 관리자 [블로그] 목록과 상태를 확인하세요'] }); log('! 저장은 했지만 사이트에서 글이 아직 보이지 않습니다 — 관리자 목록·상태를 확인하세요'); process.exitCode = 1; }
     } else {
-      setStatus('saved_private', { savedAt: new Date().toISOString(), errors: undefined });
+      setStatus('saved_private', { savedAt: new Date().toISOString(), savedUrl: page.url(), errors: undefined, flipError: undefined });
       log('✓ 관리자에 비공개로 저장했습니다 — 관리자 화면에서 확인한 뒤 [공개 전환]을 누르세요 (사이트에는 아직 안 보입니다)');
     }
   } catch (e) {
     log('✗ 실패: ' + e.message);
     await failShot(page, SLUG);
-    setStatus('error', { errors: [e.message] });
+    // 공개 전환이 실패해도 글은 관리자에 비공개로 이미 저장돼 있다 → 오류 상태로 바꾸면 [관리자에 비공개 저장]이 다시 눌려 같은 글이 또 저장된다. 상태는 그대로 두고 사유만 남긴다.
+    if (isFlip) setStatus('saved_private', { flipError: e.message });
+    else setStatus('error', { errors: [e.message] });
     process.exitCode = 1;
   }
   await ctx.close().catch(() => {});

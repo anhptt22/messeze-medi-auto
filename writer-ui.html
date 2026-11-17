@@ -697,18 +697,20 @@ async function renderMedi() {
     const p = q.post || {}; const slug = esc(p.slug || '');
     const [cls, txt] = stMap[q.status] || ['', q.status];
     const live = q.url ? ` <a href="${esc(q.url)}" target="_blank" title="발행된 글 열기">↗</a>` : '';
+    const fixT = q.status === 'published' ? `<button class="btn-sub" onclick="mFixTable('${slug}')" ${running ? 'disabled' : ''}>표 서식 복구</button> ` : '';
     const prev = `<a href="/medi-preview/${encodeURIComponent(p.slug || '')}" target="_blank"><button class="btn-sub">미리보기</button></a> `;
     const fields = `<a href="/medi-fields/${encodeURIComponent(p.slug || '')}" target="_blank"><button class="btn-sub">입력값 보기</button></a> `;
-    let act = prev;
+    let act = prev + fixT;
     const dis = running ? 'disabled' : '';
-    if (q.status === 'pending' || q.status === 'error') act += `<button class="btn-approve" onclick="mSave('${slug}','private')" ${dis}>관리자에 비공개 저장</button> <button class="btn-sub" onclick="mSave('${slug}','public')" ${dis}>공개 발행</button> `
+    if (q.status === 'pending' || q.status === 'error') act += (q.status === 'error' ? `<button class="btn-sub" onclick="mMark('${slug}','saved')">관리자에 이미 저장돼 있음</button> ` : '') + `<button class="btn-approve" onclick="mSave('${slug}','private')" ${dis}>관리자에 비공개 저장</button> <button class="btn-sub" onclick="mSave('${slug}','public')" ${dis}>공개 발행</button> `
       + `<button class="btn-sub" onclick="mRegen('${slug}','new')" ${dis}>다시 쓰기</button> <button class="btn-sub" onclick="mRegen('${slug}','same')" ${dis}>같은 질문으로</button> `
       + fields + `<button class="btn-sub" onclick="mRej('${slug}')">반려</button>`;
-    if (q.status === 'saved_private') act += `<button class="btn-approve" onclick="mSave('${slug}','public')" ${dis}>공개 전환</button> ` + fields + `<button class="btn-sub" onclick="mRej('${slug}')">반려</button>`;
+    if (q.status === 'saved_private') act += `<button class="btn-approve" onclick="mSave('${slug}','public')" ${dis}>공개 전환</button> <button class="btn-sub" onclick="mMark('${slug}','published')">관리자에서 직접 공개함</button> ` + fields + `<button class="btn-sub" onclick="mRej('${slug}')">반려</button>`;
     const scN = q.score !== null && q.score !== undefined && String(q.score).match(/\d+/) ? Number(String(q.score).match(/\d+/)[0]) : null;
     const scB = scN !== null ? ` <span class="badge score ${scN < 18 ? 'low' : ''}">${scN}/20</span>` : '';
     const warns = (q.warnings || []).map(w => `<div class="mwarn" style="color:${w.startsWith('✗') ? 'var(--red)' : '#9a6b00'}">${esc(w)}</div>`).join('');
-    const err = q.status === 'error' && q.errors ? `<div class="mwarn" style="color:var(--red)">${esc(String(q.errors[0] || '').slice(0, 200))}</div>` : '';
+    const errTxt = q.flipError || (q.status === 'error' && q.errors ? q.errors[0] : '');
+    const err = errTxt ? `<div class="mwarn" style="color:var(--red)">${esc(String(errTxt).slice(0, 420))}</div>` : '';
     const meta = [p.cat, p.date || q.created].filter(Boolean).map(esc).join(' · ');
     return `<tr><td class="muted" style="font-size:12px;max-width:190px"><b>${esc(q.q_no || '')}</b><br>${esc((q.question || '').slice(0, 50))}</td>
       <td><a class="t" href="/medi-preview/${encodeURIComponent(p.slug || '')}" target="_blank">${esc(p.title || '-')}</a>${live}${scB}<div class="muted" style="font-size:12px;margin-top:3px">${meta}</div>${err}${warns}
@@ -743,6 +745,17 @@ async function mSave(slug, mode) {
 async function mRegen(slug, mode) {
   if (!confirm(`[메디] ${slug}\n\n${mode === 'same' ? '같은 질문으로 처음부터 다시' : '이 글 대신 다른 질문으로 새 글 1편을'} 씁니다.\n기존 원고는 _재생성_백업_메디 폴더에 보관되고, 실패하면 그대로 돌아옵니다. 약 5~15분. 진행할까요?`)) return;
   const r = await api('/api/medi/regenerate', { slug, mode }); if (r && r.ok === false) alert('실패: ' + (r.msg || '알 수 없는 오류')); tick();
+}
+async function mFixTable(slug) {
+  if (!confirm(`[메디] ${slug}\n\n이미 발행된 글의 표 테두리가 사라졌을 때 쓰는 복구입니다.\n관리자에서 이 글을 열어 표 서식만 되돌려 저장합니다(내용·공개 상태는 그대로). 먼저 사이트에서 표 테두리가 실제로 없는지 확인하세요.\n열리는 Chrome 창은 닫지 마세요. 진행할까요?`)) return;
+  const r = await api('/api/medi/fixtable', { slug }); if (r && r.ok === false) alert(r.msg || '실행 실패'); tick();
+}
+async function mMark(slug, state) {
+  const msg = state === 'published'
+    ? '관리자 화면에서 이 글의 상태를 이미 [공개]로 바꿨나요?\n(사이트에 글이 보이는지 확인한 뒤 누르세요 — 큐에서 [발행됨]으로 표시합니다)'
+    : '관리자 [블로그] 목록에 이 글이 이미 [비공개]로 저장돼 있나요?\n(이미 있는데 [관리자에 비공개 저장]을 또 누르면 같은 글이 두 개가 됩니다)';
+  if (!confirm(msg)) return;
+  const r = await api('/api/medi/mark', { slug, state }); if (r && r.ok === false) alert(r.msg || '실패'); tick();
 }
 async function mRej(slug) {
   if (!confirm('이 글을 반려(발행 안 함)할까요?\n' + slug)) return;

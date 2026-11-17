@@ -730,6 +730,25 @@ const server = http.createServer(async (req, res) => {
       if (!runJob(`메디 ${mode === 'public' ? '공개 발행' : '관리자 비공개 저장'}${b.dry ? '(입력만)' : ''}`, () => spawnJob('medi-poster.js', a, 20))) return send(409, { ok: false, msg: '다른 작업 실행 중' });
       return send(200, { ok: true });
     }
+    if (url.pathname === '/api/medi/fixtable' && req.method === 'POST') {
+      const b = await body(req);
+      if (!/^[a-z0-9-]+$/i.test(String(b.slug || ''))) return send(400, { ok: false, msg: 'slug 형식 오류' });
+      if (!runJob('메디 표 서식 복구', () => spawnJob('medi-poster.js', ['fixtable', '--slug=' + b.slug].concat(b.dry ? ['--dry'] : []), 15))) return send(409, { ok: false, msg: '다른 작업 실행 중' });
+      return send(200, { ok: true });
+    }
+    if (url.pathname === '/api/medi/mark' && req.method === 'POST') {
+      // 관리자 화면에서 사람이 직접 저장·공개한 글을 큐에 맞춰 둔다. state: saved(비공개로 이미 저장됨) | published(공개까지 끝남)
+      const b = await body(req);
+      const M = require('./medi-lib'); const q = M.loadQueue();
+      const it = (q.posts || []).find(x => x.post && x.post.slug === b.slug);
+      if (!it) return send(404, { ok: false, msg: '글을 찾지 못했습니다' });
+      if (b.state === 'published') { it.status = 'published'; it.url = `${M.SITE}/blog/${it.post.slug}`; it.publishedAt = new Date().toISOString(); it.errors = undefined; it.flipError = undefined; }
+      else if (b.state === 'saved') { it.status = 'saved_private'; it.savedAt = it.savedAt || new Date().toISOString(); it.errors = undefined; it.flipError = undefined; }
+      else return send(400, { ok: false, msg: 'state 오류' });
+      M.saveQueue(q);
+      jlog(`메디 칼럼 상태 수동 지정(${b.state}): ${it.post.title}`);
+      return send(200, { ok: true });
+    }
     if (url.pathname === '/api/medi/login' && req.method === 'POST') {
       if (!runJob('메디 관리자 로그인', () => spawnJob('medi-login.js', [], 10))) return send(409, { ok: false, msg: '다른 작업 실행 중' });
       return send(200, { ok: true });
