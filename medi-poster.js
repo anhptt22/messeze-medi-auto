@@ -187,13 +187,20 @@ async function fillAndSave(page, it, imgFile, mode) {
   return 'saved';
 }
 
-// 관리자 글 목록에서 이 글의 수정 화면을 연다. 순서: ① 저장 직후 기록해 둔 주소 ② 목록에서 슬러그 링크 ③ 목록에서 제목 글자(여러 쪽까지)
+// 관리자 글 목록에서 이 글의 수정 화면을 연다.
+// 순서: ① 저장 직후 기록해 둔 주소 ② 목록(여러 쪽)에서 슬러그 링크 ③ 제목 글자(앞부분 일부만 일치해도 인정 — 목록이 긴 제목을 줄여 보여 주는 경우 대비) ④ 검색 칸이 있으면 검색
 async function openSavedPost(page, it, map) {
   const slug = it.post.slug, title = it.post.title;
   const norm = (x) => String(x || '').replace(/\s+/g, ' ').trim();
+  const head = norm(title).slice(0, 16);           // 제목 앞 16자(지역·진료과·항목이 들어 있어 글마다 다르다)
   const isEdit = async () => {
     const v = await ctl(page, '슬러그').inputValue({ timeout: 3000 }).catch(() => null);
     return v !== null && norm(v) === slug;
+  };
+  const clickInto = async (loc) => {
+    await loc.click({ timeout: 8000 }).catch(() => {});
+    await page.waitForLoadState('domcontentloaded').catch(() => {}); await page.waitForTimeout(1500);
+    return isEdit();
   };
   // ① 저장 직후 화면 주소(수정 화면으로 넘어간 경우)
   if (it.savedUrl && /^https?:\/\//.test(it.savedUrl) && it.savedUrl !== (map.listUrl || '')) {
@@ -201,40 +208,65 @@ async function openSavedPost(page, it, map) {
     await page.waitForTimeout(1200);
     if (await isEdit()) return 'savedUrl';
   }
-  const listUrl = map.listUrl || (ADMIN_URL + '/blog');
+  const listUrl = map.listUrl || (ADMIN_URL + '/posts');
   await page.goto(listUrl, { waitUntil: 'domcontentloaded' }).catch(() => {});
   if (!(await isAdminIn(page))) throw new Error('관리자 로그인 필요 — [메디 관리자 로그인] 후 다시 시도하세요');
-  const seen = [];
-  for (let pg = 1; pg <= 8; pg++) {
-    await page.waitForTimeout(800);
-    // ② 슬러그가 들어간 링크(공개 글 주소가 아니라 관리자 안의 수정 링크일 때)
+  const startUrl = page.url();
+
+  // 현재 쪽에서 이 글을 찾아 수정 화면까지 연다(찾으면 방식 이름, 못 찾으면 '')
+  const tryHere = async () => {
     const bySlug = page.locator(`a[href*="${slug}"]`).first();
-    if (await bySlug.count()) {
-      await bySlug.click(); await page.waitForLoadState('domcontentloaded').catch(() => {}); await page.waitForTimeout(1500);
-      if (await isEdit()) return 'slugLink';
-      await page.goBack().catch(() => {}); await page.waitForTimeout(800);
-    }
-    // ③ 제목 글자가 있는 줄(표·목록·카드 모두) → 그 줄의 수정 링크, 없으면 제목 자체 클릭
-    const t = page.getByText(title, { exact: false }).first();
+    if (await bySlug.count()) { if (await clickInto(bySlug)) return 'slugLink'; await page.goBack().catch(() => {}); await page.waitForTimeout(800); }
+    const t = page.getByText(head, { exact: false }).first();
     if (await t.count()) {
       const row = t.locator('xpath=ancestor-or-self::*[self::tr or self::li or self::article or contains(@class,"card") or contains(@class,"item") or contains(@class,"row")][1]');
       const scope = (await row.count()) ? row : t;
       const edit = scope.locator('a', { hasText: /수정|편집|보기|edit/i }).first();
-      if (await edit.count()) await edit.click();
-      else if (await scope.locator('a').count()) await scope.locator('a').first().click();
-      else await t.click();
-      await page.waitForLoadState('domcontentloaded').catch(() => {}); await page.waitForTimeout(1500);
-      if (await isEdit()) return 'titleRow';
+      const target = (await edit.count()) ? edit : ((await scope.locator('a').count()) ? scope.locator('a').first() : t);
+      if (await clickInto(target)) return 'titleRow';
       await page.goBack().catch(() => {}); await page.waitForTimeout(800);
     }
-    seen.push(...(await page.locator('tbody tr, ul li, article').allInnerTexts().catch(() => [])).slice(0, 3).map(x => norm(x).slice(0, 28)));
-    // 다음 쪽
-    const next = page.locator('a[rel=next], a:has-text("다음"), a:has-text("›"), a:has-text("»"), .pagination a:has-text(">")').first();
-    if (!(await next.count())) break;
-    await next.click().catch(() => {}); await page.waitForLoadState('domcontentloaded').catch(() => {});
+    return '';
+  };
+  // 쪽 이동 링크 수집: 숫자 링크·다음/Next/›/» · 주소에 page=·p=·per_page=·/숫자 가 들어간 같은 사이트 링크
+  const pagerLinks = async () => page.evaluate(() => {
+    const out = new Set(); const here = location.href;
+    document.querySelectorAll('a[href]').forEach(a => {
+      const t = (a.textContent || '').replace(/\s+/g, '').trim(); const h = a.href;
+      if (!h || h === here || /^javascript:|#$/.test(a.getAttribute('href') || '')) return;
+      if (new URL(h).origin !== location.origin) return;
+      const looksPager = /^\d{1,3}$/.test(t) || /^(다음|이전|next|prev|›|»|‹|«|>|<|\.\.\.)$/i.test(t) || /[?&](page|p|per_page|paged)=\d+/i.test(h) || /\/(posts|blog)\/(page\/)?\d+\/?$/i.test(h);
+      if (looksPager && /\/admin\//.test(h) && !/\/(edit|delete|remove|add|new)\b/i.test(h)) out.add(h);
+    });
+    return [...out];
+  }).catch(() => []);
+
+  const diag = [];
+  const visited = new Set([startUrl]);
+  const queue = [startUrl];
+  let pages = 0;
+  while (queue.length && pages < 25) {
+    const u = queue.shift(); pages++;
+    if (page.url() !== u) { await page.goto(u, { waitUntil: 'domcontentloaded' }).catch(() => {}); }
+    await page.waitForTimeout(900);
+    const hit = await tryHere();
+    if (hit) return hit;
+    const rows = await page.locator('tbody tr, ul.list li, article').count().catch(() => 0);
+    const links = await pagerLinks();
+    const newLinks = links.filter(h => !visited.has(h));
+    newLinks.forEach(h => { visited.add(h); queue.push(h); });
+    diag.push(`${new URL(page.url()).pathname}${new URL(page.url()).search}: 줄 ${rows}개, 새 쪽 링크 ${newLinks.length}개`);
   }
-  const pageTitle = await page.title().catch(() => '');
-  throw new Error(`관리자 글 목록에서 이 글을 찾지 못했습니다 — 관리자 [블로그]에 이 글이 실제로 있는지(비공개) 먼저 확인하세요. 있으면 관리자에서 상태만 '공개'로 바꾸고 이 글은 [관리자에서 직접 처리함]을 누르세요. (제목: ${title} · 화면: ${pageTitle} ${page.url()} · 목록 일부: ${seen.slice(0, 3).join(' / ') || '없음'})`);
+  // ④ 검색 칸이 있으면 제목 앞부분으로 검색
+  const sb = page.locator('input[type=search], input[name=q], input[name=keyword], input[name=search], input[name=s], input[placeholder*="검색"]').first();
+  if (await sb.count()) {
+    await sb.fill(head).catch(() => {}); await sb.press('Enter').catch(() => {});
+    await page.waitForLoadState('domcontentloaded').catch(() => {}); await page.waitForTimeout(1500);
+    const hit = await tryHere(); if (hit) return hit + '+검색';
+    diag.push('검색 시도: 결과 없음');
+  } else diag.push('검색 칸 없음');
+  const rowsTxt = (await page.locator('tbody tr, ul.list li, article').allInnerTexts().catch(() => [])).map(x => norm(x).slice(0, 40));
+  throw new Error(`관리자 글 목록에서 이 글을 찾지 못했습니다 — 관리자 [블로그]에 이 글이 있는지 먼저 확인하세요(이미 공개된 글이면 [관리자에서 직접 공개함]). (찾은 제목 앞부분: "${head}" · 훑은 쪽 ${pages}개 · ${diag.slice(0, 4).join(' / ')} · 마지막 쪽 줄: ${rowsTxt.slice(-2).join(' | ') || '없음'})`);
 }
 
 async function flipToPublic(page, it, map) {
